@@ -145,7 +145,9 @@
 			}
 
 			width = self._calculateClipWidth();
+			console.log( "[refresh] calculate clip width ( origin : %s v.s new : %s )", width, self._calculateClipSize2('width') );
 			height = self._calculateClipHeight();
+			console.log( "[refresh] calculate clip heigth ( origin : %s v.s new : %s )", height, self._calculateClipSize2('height') );
 			self._$view.width(width).height(height);
 			self._$clip.width(width).height(height);
 
@@ -236,6 +238,46 @@
 			return clipSize;
 		},
 
+		_calculateClipSize2 : function ( attr ) {
+			var self = this,
+				paddingValue = 0,
+				axis = attr === 'height' ? true : false,
+				difinedAttrName = axis ? "isDefinedHeight"  : "isDefinedWidth",
+				clipSize = 0,
+				paddingName1, paddingName2, header, footer, $parent, $view;
+
+			if ( self._inheritedSize[difinedAttrName] ) {
+				return self._inheritedSize[attr];
+			}
+
+			$view = self._$clip;
+			$parent = $view.parents( ".ui-content" );
+			clipSize = window[ "inner" + ( axis ? "Height" : "Width" ) ];
+
+			if ( axis ) {
+				header = $view.parents(".ui-header");
+				footer = $view.parents(".ui-footer");
+				clipSize = clipSize - ( header.outerHeight( true ) || 0);
+				clipSize = clipSize - ( footer.outerHeight( true ) || 0);
+				paddingName1 = "paddig-top";
+				paddingName2 = "paddig-bottom";
+			} else {
+				paddingName1 = "paddig-left";
+				paddingName2 = "paddig-right";
+			}
+
+			if ( $parent ) {
+				paddingValue = parseInt( $parent.css( paddingName1 ), 10 );
+				clipSize = clipSize - ( paddingValue || 0 );
+				paddingValue = parseInt( $parent.css( paddingName2 ), 10 );
+				clipSize = clipSize - ( paddingValue || 0 );
+			} else {
+				clipSize = $view[attr]();
+			}
+
+			return clipSize;
+		},
+
 		_calculateClipWidth : function () {
 			var self = this,
 				view = $(self.element),
@@ -302,20 +344,7 @@
 			self._$templateItemSize.width = $tempItem.outerWidth( true );
 			self._$templateItemSize.height = $tempItem.outerHeight( true );
 
-			// if ( self._direction ) {
-				// // x-axis
-				// self._viewSize = self._$view.width();
-				// self._cellSize = $tempItem.outerWidth(true);
-				// self._cellOtherSize = $tempItem.outerHeight(true);
-			// } else {
-				// // y-axis
-				// self._viewSize = self._$view.height();
-				// self._cellSize = $tempItem.outerHeight(true);
-				// self._cellOtherSize = $tempItem.outerWidth(true);
-			// }
-
 			$tempBlock.remove();
-			// return templateItemSize;
 		},
 
 		_calculateColumnCount : function ( ) {
