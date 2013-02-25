@@ -144,16 +144,13 @@
 				return ;
 			}
 
-			width = self._calculateClipWidth();
-			console.log( "[refresh] calculate clip width ( origin : %s v.s new : %s )", width, self._calculateClipSize2('width') );
-			height = self._calculateClipHeight();
-			console.log( "[refresh] calculate clip heigth ( origin : %s v.s new : %s )", height, self._calculateClipSize2('height') );
+			width = self._calculateClipSize('width');
+			height = self._calculateClipSize('height');
 			self._$view.width(width).height(height);
 			self._$clip.width(width).height(height);
 
-			self._$clipSize = self._calculateClipSize();
-			console.log("[refresh] clipSize  ( width : %s, hegith : %s ) ", self._$clipSize.width, self._$clipSize.height );
-			console.log("[refresh] window  ( width : %s, hegith : %s ) ", window["inner"+"Width"], window["inner"+"Height"] );
+			self._$clipSize.width = width;
+			self._$clipSize.height = height;
 			self._calculateTemplateItemSize();
 			self._initPageProperty();
 		},
@@ -164,7 +161,9 @@
 				$children,
 				columnCount = 0,
 				totalRowCnt = 0,
-				attributeName = self._direction ? "width" : "height";
+				attributeName = self._direction ? "width" : "height",
+				clipSize =  self._direction ? self._$clipSize.width : self._$clipSize.height,
+				templateSize = self.direction ? self._$templateItemSize.width : self._$templateItemSize.height ;
 
 			columnCount = self._calculateColumnCount();
 			console.log("[_initPageProperty] columnCount : " + columnCount);
@@ -173,17 +172,17 @@
 			self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
 			self._itemCount = columnCount;
 
-			if ( self._cellSize <= 0) {
+			if ( templateSize <= 0) {
 				return ;
 			}
 
-			rowsPerView = self._clipSize / self._cellSize;
+			rowsPerView = clipSize / templateSize;
 			rowsPerView = Math.ceil( rowsPerView );
 			self._rowsPerView = parseInt( rowsPerView, 10);
 
 			$children = self._makeRows( rowsPerView + 2 );
 			self._$content.append($children);
-			self._$content.children().css(attributeName, self._cellSize + "px");
+			self._$content.children().css(attributeName, templateSize + "px");
 
 			self._blockScroll = self._rowsPerView > self._totalRowCnt;
 			self._maxSize = ( self._totalRowCnt - self._rowsPerView ) * self._cellSize;
@@ -226,19 +225,7 @@
 		//----------------------------------------------------//
 		//		Calculate size about dom element.		//
 		//----------------------------------------------------//
-		_calculateClipSize : function () {
-			var self = this,
-				clipSize = 0;
-
-			if ( self._direction ) {
-				clipSize = self._calculateClipWidth();
-			} else {
-				clipSize = self._calculateClipHeight();
-			}
-			return clipSize;
-		},
-
-		_calculateClipSize2 : function ( attr ) {
+		_calculateClipSize : function ( attr ) {
 			var self = this,
 				paddingValue = 0,
 				axis = attr === 'height' ? true : false,
@@ -255,15 +242,15 @@
 			clipSize = window[ "inner" + ( axis ? "Height" : "Width" ) ];
 
 			if ( axis ) {
-				header = $view.parents(".ui-header");
-				footer = $view.parents(".ui-footer");
+				header = $parent.siblings(".ui-header");
+				footer = $parent.siblings(".ui-footer");
 				clipSize = clipSize - ( header.outerHeight( true ) || 0);
 				clipSize = clipSize - ( footer.outerHeight( true ) || 0);
-				paddingName1 = "paddig-top";
-				paddingName2 = "paddig-bottom";
+				paddingName1 = "padding-top";
+				paddingName2 = "padding-bottom";
 			} else {
-				paddingName1 = "paddig-left";
-				paddingName2 = "paddig-right";
+				paddingName1 = "padding-left";
+				paddingName2 = "padding-right";
 			}
 
 			if ( $parent ) {
@@ -275,59 +262,6 @@
 				clipSize = $view[attr]();
 			}
 
-			return clipSize;
-		},
-
-		_calculateClipWidth : function () {
-			var self = this,
-				view = $(self.element),
-				$parent = view.parents(".ui-content"),
-				paddingValue = 0,
-				clipSize = $( window ).width();
-
-			console.log("$(window).width = %s / window.innerWidth =  %s", clipSize , window.innerWidth );
-
-			if ( self._inheritedSize.isDefinedWidth ) {
-				return self._inheritedSize.width;
-			}
-
-			if ( $parent ) {
-				paddingValue = parseInt($parent.css("padding-left"), 10);
-				clipSize = clipSize - ( paddingValue || 0 );
-				paddingValue = parseInt($parent.css("padding-right"), 10);
-				clipSize = clipSize - ( paddingValue || 0);
-			} else {
-				clipSize = view.width();
-			}
-			return clipSize;
-		},
-
-		_calculateClipHeight : function () {
-			var self = this,
-				$view = $(self.element),
-				$parent = $view.closest(".ui-content"),
-				header = null,
-				footer = null,
-				paddingValue = 0,
-				clipSize = window.innerHeight;
-
-			if ( self._inheritedSize.isDefinedHeight ) {
-				return self._inheritedSize.height;
-			}
-
-			if ( $parent ) {
-				paddingValue = parseInt($parent.css("padding-top"), 10);
-				clipSize = clipSize - ( paddingValue || 0 );
-				paddingValue = parseInt($parent.css("padding-bottom"), 10);
-				clipSize = clipSize - ( paddingValue || 0);
-				header = $parent.siblings(".ui-header");
-				footer = $parent.siblings(".ui-footer");
-
-				clipSize = clipSize - ( header.outerHeight(true) || 0);
-				clipSize = clipSize - ( footer.outerHeight(true) || 0);
-			} else {
-				clipSize = view.height();
-			}
 			return clipSize;
 		},
 
@@ -351,6 +285,7 @@
 			var self = this,
 				$view = $(self.element),
 				viewSize = self._direction ? $view.innerHeight() : $view.innerWidth(),
+				templateSize = self._direction ? self._$templateItemSize.height : self._$templateItemSize.width,
 				itemCount = 0 ;
 
 			var pushViewSize = viewSize;
@@ -360,7 +295,8 @@
 				viewSize = viewSize - ( parseInt( $view.css("padding-left"), 10 ) + parseInt( $view.css("padding-right"), 10 ) );
 			}
 
-			itemCount = parseInt( (viewSize / self._cellOtherSize), 10);
+			itemCount = parseInt( (viewSize / templateSize), 10);
+			console.log("item count : %s", itemCount );
 			return itemCount > 0 ? itemCount : 1 ;
 		},
 
