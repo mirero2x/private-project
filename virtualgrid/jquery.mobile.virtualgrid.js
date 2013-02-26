@@ -26,6 +26,49 @@
 
 ( function ($, window, document, undefined) {
 
+
+	function getScrollBarWidth() {
+		var inner = document.createElement('p');
+
+		inner.style.width = "100%";
+		inner.style.height = "200px";
+
+		var outer = document.createElement('div');
+		outer.style.position = "absolute";
+		outer.style.top = "0px";
+		outer.style.left = "0px";
+		outer.style.visibility = "hidden";
+		outer.style.width = "200px";
+		outer.style.height = "150px";
+		outer.style.overflow = "hidden";
+		outer.appendChild(inner);
+
+		document.body.appendChild(outer);
+		var w1 = inner.offsetWidth;
+		outer.style.overflow = 'scroll';
+		var w2 = inner.offsetWidth;
+
+		if (w1 == w2) {
+			w2 = outer.clientWidth;
+		}
+
+		document.body.removeChild(outer);
+		return (w1 - w2);
+	};
+
+	scrollbarWidth = function() {
+  var parent, child, width;
+
+  if(width===undefined) {
+    parent = $('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body');
+    child=parent.children();
+    width=child.innerWidth()-child.height(99).innerWidth();
+    parent.remove();
+  }
+
+ return width;
+};
+
 	jQuery.widget ("mobile.virtualgrid", jQuery.mobile.widget, {
 		// view
 		_$view : null,
@@ -36,6 +79,8 @@
 		_viewSize : 0,
 		_itemCount : 1,
 		_inheritedSize : null,
+
+		_storedScrollPos : 0,
 
 		_$clipSize : {
 			width :0,
@@ -53,6 +98,10 @@
 		_cacheItemData : function ( minIdx, maxIdx ) { },
 		_totalRowCnt : 0,
 		_maxSize : 0,
+		_scrollBarWidth :0,
+
+		_headItemIdx :0,
+		_tailItemIdx :0,
 
 		// axis - ( true : x , false : y )
 		_direction : false,
@@ -65,6 +114,7 @@
 			initSelector: ":jqmData(role='virtualgrid')"
 		},
 
+		//TODO : I will deprecate this function. 
 		create : function () {
 			this._create.apply( this, arguments );
 		},
@@ -86,6 +136,8 @@
 			}
 
 			// make a fragment.
+			self._scrollBarWidth = getScrollBarWidth() ;
+			console.log("scrollbar width : " + scrollbarWidth());
 			self._fragment = document.createDocumentFragment();
 
 			// read defined properties(width and height) from dom element.
@@ -101,8 +153,10 @@
 			self._$view = $( document.createElement("div") ).addClass("ui-virtualgrid-overthrow overthrow");
 			self._$clip.append(self._$view);
 
-			self._$content = $("<div class='ui-virtulgrid-content' ></div>");
+			self._$content = $("<div class='ui-virtulgrid-content' style='position:relative;' ></div>");
 			self._$view.append(self._$content);
+
+			self._addEventListener();
 
 			self.refresh();
 		},
@@ -131,6 +185,14 @@
 			}
 			self._getObjectNames( self._itemData(0) );
 			return true;
+		},
+
+		_addEventListener : function () {
+			var self = this;
+
+			self._$view.bind("scroll", function (){
+				self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop )
+			});
 		},
 
 		refresh : function () {
@@ -166,7 +228,6 @@
 				templateSize = self.direction ? self._$templateItemSize.width : self._$templateItemSize.height ;
 
 			columnCount = self._calculateColumnCount();
-			console.log("[_initPageProperty] columnCount : " + columnCount);
 
 			totalRowCnt = parseInt(self._numItemData / columnCount , 10 );
 			self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
@@ -185,10 +246,10 @@
 			self._$content.children().css(attributeName, templateSize + "px");
 
 			self._blockScroll = self._rowsPerView > self._totalRowCnt;
-			self._maxSize = ( self._totalRowCnt - self._rowsPerView ) * self._cellSize;
+			self._maxSize = ( self._totalRowCnt - self._rowsPerView ) * templateSize;
 
-			// Type : overthrow
 			self._$content.height(self._maxSize);
+			self._tailItemIdx = rowsPerView + 2 ;
 		},
 
 		_getinheritedSize : function ( elem ) {
@@ -220,6 +281,69 @@
 				$target = $target.parent();
 			}
 			return ret;
+		},
+
+		//----------------------------------------------------//
+		//		Calculate size about dom element.		//
+		//----------------------------------------------------//
+		_setScrollPosition: function ( x, y ) {
+			var self = this,
+				prevPos = self._storedScrollPos,
+				curPos = self._direction ? x : y,
+				diffPos = 0,
+				attrName = null,
+				templateItemSize =0,
+				di = 0,
+				i = 0,
+				idx = 0,
+				$row = null;
+
+			if ( self._direction ) {
+				curPos = x;
+				templateItemSize = self._$templateItemSize.width;
+				attrName = "left";
+			} else {
+				curPos = y;
+				templateItemSize = self._$templateItemSize.height;
+				attrName = "top";
+			}
+			diffPos = curPos - prevPos;
+			di = parseInt( diffPos / templateItemSize, 10 );
+
+			console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
+			if ( di > 0 && self._tailItemIdx < self._totalRowCnt ) { // scroll down
+				if ( self._tailItemIdx + 1 === self._totalRowCnt ) {
+						console.log ("break;");
+				}
+				for ( i = 0; i < di; i++ ) {
+					$row = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
+					self._replaceRow( $row, self._tailItemIdx );
+					self._tailItemIdx++;
+					self._headItemIdx++;
+				}
+				self._storedScrollPos += di * templateItemSize;
+			} else if ( di < 0 ) { // scroll up
+				for ( i = 0; i > di && self._headItemIdx > 0; i-- ) {
+					self._tailItemIdx--;
+					self._headItemIdx--;
+					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
+					self._replaceRow( $row, self._headItemIdx );
+				}
+				self._storedScrollPos += di * templateItemSize;
+			}
+
+			if ( diffPos < 0 ) {
+				$row =  $( "[row-index='" + self._headItemIdx + "']", self._$content );
+				if ( $row.position()[attrName] > curPos ) {
+					console.log("\n>>>>>>>>>>> exception case :: \n")
+					self._tailItemIdx--;
+					self._headItemIdx--;
+					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
+					self._replaceRow( $row, self._headItemIdx );
+				}
+			}
+
+			console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
 		},
 
 		//----------------------------------------------------//
@@ -274,10 +398,8 @@
 			$tempBlock = $ ( self._makeRow( 0 ) );
 			$tempItem = $tempBlock.children().eq( 0 );
 			self._$content.append( $tempBlock );
-
 			self._$templateItemSize.width = $tempItem.outerWidth( true );
 			self._$templateItemSize.height = $tempItem.outerHeight( true );
-
 			$tempBlock.remove();
 		},
 
@@ -294,9 +416,12 @@
 			} else {
 				viewSize = viewSize - ( parseInt( $view.css("padding-left"), 10 ) + parseInt( $view.css("padding-right"), 10 ) );
 			}
-
+			if ( viewSize < templateSize * self._numItemData ) {
+				console.log("[ _calculateColumnCount ] apply scrollbarwidth ... : " + self._scrollBarWidth);
+				viewSize = viewSize - ( self._scrollBarWidth );
+			}
 			itemCount = parseInt( (viewSize / templateSize), 10);
-			console.log("item count : %s", itemCount );
+			console.log( " itemCount : %s (viewSize : %s , scrollBar size : %s  templateSize : %s )", itemCount, viewSize, self._scrollBarWidth, templateSize );
 			return itemCount > 0 ? itemCount : 1 ;
 		},
 
@@ -310,9 +435,11 @@
 				children = [];
 
 			for ( index = 0; index < count ; index += 1 ) {
-				$row = self._makeRow( index );
+				$row = $( self._makeRow( index ) );
+
+				$row.children().detach().appendTo($row); // <-- layout
+
 				if ( self._direction ) {
-					// $row.css( "top", 0 ).css( "left", ( index * self._cellSize ) );
 					$row.css({
 						"top" : 0,
 						"left" : ( index * self._cellSize )
@@ -337,14 +464,16 @@
 				wrapBlock = self._createElement ( "div" ),
 				strWrapInner = "";
 
-			for ( colIndex = 0; colIndex < self._itemCount; colIndex++ ) {
+			for ( colIndex = 0; colIndex < self._itemCount && index < self._numItemData ; colIndex++ ) {
 				strWrapInner += self._makeHtmlData( index, index, attrName ) 
 				index += 1;
 			}
 			wrapBlock.innerHTML = strWrapInner;
 			wrapBlock.setAttribute( "class", blockClassName );
 			wrapBlock.setAttribute( "row-index", String( rowIndex ) );
-			self._fragment.appendChild( wrapBlock );
+			wrapBlock.style.position = "absolute";
+			wrapBlock.style.top = ( rowIndex * self._$templateItemSize.height ) + "px";
+			// self._fragment.appendChild( wrapBlock );
 			return wrapBlock;
 		},
 
@@ -443,41 +572,21 @@
 
 		_replaceRow : function ( block, index ) {
 			var self = this,
-				opts = self.options,
-				$columns = null,
-				$column = null,
-				$block = block.attr ? block : $( block );
-				data = null,
-				htmlData = null,
-				myTemplate = null,
-				idx = 0,
-				dataIdx = 0,
-				attrName = self._direction ? "top" : "left",
+				$block = block.hasChildNodes ? block : block[0];
 				tempBlocks = null;
 
-			$columns = $block.attr( "row-index", index ).children();
-			if ( $columns.length !== self._itemCount ) {
-				$block.children().remove();
-				tempBlocks = $( self._makeRow( index ) );
-				$block.append( tempBlocks.children() );
-				tempBlocks.remove();
-				return ;
-			}
+			while ( $block.hasChildNodes() ) {
+				$block.removeChild( $block.lastChild );
+ 			}
 
-			dataIdx = index * self._itemCount;
-			for ( idx = 0; idx < self._itemCount ; idx += 1 ) {
-				$column = $columns.eq(idx);
-				data = self._itemData(dataIdx);
-				if ( $column && data ) {
-					htmlData = self._tmpl( data );
-					htmlData.css( attrName, ( idx * self._cellOtherSize ) ).addClass( "virtualgrid-item" );
-					$column.remove();
-					$block.append( htmlData );
-					dataIdx ++;
-				} else if ($column && !data ) {
-					$column.remove();
-				}
-			}
+			tempBlocks = self._makeRow( index );
+			while ( tempBlocks.children.length ) {
+				$block.appendChild( tempBlocks.children[0] );
+ 			}
+ 			// $block.innerHTML = tempBlocks.innerHTML;
+ 			$block.style.top = ( index * self._$templateItemSize.height ) + "px"
+ 			$block.setAttribute("row-index", index );
+			tempBlocks.parentNode.removeChild( tempBlocks );
 		},
 
 		_createElement : function ( tag ) {
