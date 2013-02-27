@@ -136,6 +136,7 @@
 			}
 
 			// make a fragment.
+			self._eventType = $.support.touch ? "touch" : "mouse";
 			self._scrollBarWidth = getScrollBarWidth() ;
 			console.log("scrollbar width : " + scrollbarWidth());
 			self._fragment = document.createDocumentFragment();
@@ -189,9 +190,81 @@
 
 		_addEventListener : function () {
 			var self = this;
+/*
+			// self._$view.bind("scroll", function (){
+				// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop )
+			// });
+			// console.log("event type :: " + self._eventType );
+			// scroll event handler.
+			if (  self._eventType === "mouse" ) {
+				self._dragStartEvt = "mousedown";
+				// self._dragStartCB = function ( e ) {
+					// return self._handleDragStart( e, e.clientX, e.clientY );
+				// };
 
-			self._$view.bind("scroll", function (){
-				self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop )
+				self._dragMoveEvt = "mousemove";
+				self._dragMoveCB = function ( e ) {
+					// return self._handleDragMove( e, e.clientX, e.clientY );
+					// return self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+					return false;
+				};
+
+				self._dragStopEvt = "mouseup";
+				// self._dragStopCB = function ( e ) {
+					// return self._handleDragStop( e, e.clientX, e.clientY );
+				// };
+// 
+				// self._$view.bind( "vclick", function (e) {
+					// return !self._didDrag;
+				// } );
+				self._$view.bind("scroll", function (){
+					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+				});
+			} else { //touch
+				self._dragStartEvt = "touchstart";
+				// self._dragStartCB = function ( e ) {
+					// var t = e.originalEvent.targetTouches[0];
+					// return self._handleDragStart(e, t.pageX, t.pageY );
+				// };
+
+				self._dragMoveEvt = "touchmove";
+				self._dragMoveCB = function ( e ) {
+					// var t = e.originalEvent.targetTouches[0];
+					// return self._handleDragMove(e, t.pageX, t.pageY );
+					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+					return false;
+				};
+
+				self._dragStopEvt = "touchend";
+				// self._dragStopCB = function ( e ) {
+					// return self._handleDragStop( e );
+				// };
+				self._$view.bind( self._dragMoveEvt , self._dragMoveCB );
+			}
+			// self._$view.bind( self._dragStartEvt, self._dragStartCB );
+			// self._$view.bind( self._dragMoveCB + " " +self._dragStopEvt  , self._dragStartCB );
+			
+			
+			// self._$view.bind("scroll", function (){
+				// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+			// });
+			*/
+
+			var $header = $(".ui-footer .ui-title");
+			// self._$view[0].onscroll = function ( event ) {
+				// $header.text( self._$view[0].scrollTop );
+				// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+			// };
+
+
+
+			self._$view.bind("scrollstart", function ( event ) { // from jQM
+				console.log("scrollstart :: " + self._$view[0].scrollTop);
+				$header.text( self._$view[0].scrollTop );
+			}).bind("scrollstop", function ( event ){ // from jQM
+				console.log("scrollstop :: " + self._$view[0].scrollTop);
+				$header.text( "scrollstop :: " + self._$view[0].scrollTop );
 			});
 		},
 
