@@ -105,6 +105,11 @@
 
 		// axis - ( true : x , false : y )
 		_direction : false,
+		_keepGoing : true,
+
+		// timer
+		_timerInterval : 10,
+		_timerCB : null,
 
 		options : {
 			// virtualgrid option
@@ -138,8 +143,12 @@
 			// make a fragment.
 			self._eventType = $.support.touch ? "touch" : "mouse";
 			self._scrollBarWidth = getScrollBarWidth() ;
-			console.log("scrollbar width : " + scrollbarWidth());
 			self._fragment = document.createDocumentFragment();
+
+			// self._timerCB = self._handleMomentumScroll;
+			self._timerCB = function () {
+				self._handleMomentumScroll();
+			};
 
 			// read defined properties(width and height) from dom element.
 			self._inheritedSize = self._getinheritedSize(self.element);
@@ -186,86 +195,6 @@
 			}
 			self._getObjectNames( self._itemData(0) );
 			return true;
-		},
-
-		_addEventListener : function () {
-			var self = this;
-/*
-			// self._$view.bind("scroll", function (){
-				// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop )
-			// });
-			// console.log("event type :: " + self._eventType );
-			// scroll event handler.
-			if (  self._eventType === "mouse" ) {
-				self._dragStartEvt = "mousedown";
-				// self._dragStartCB = function ( e ) {
-					// return self._handleDragStart( e, e.clientX, e.clientY );
-				// };
-
-				self._dragMoveEvt = "mousemove";
-				self._dragMoveCB = function ( e ) {
-					// return self._handleDragMove( e, e.clientX, e.clientY );
-					// return self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-					return false;
-				};
-
-				self._dragStopEvt = "mouseup";
-				// self._dragStopCB = function ( e ) {
-					// return self._handleDragStop( e, e.clientX, e.clientY );
-				// };
-// 
-				// self._$view.bind( "vclick", function (e) {
-					// return !self._didDrag;
-				// } );
-				self._$view.bind("scroll", function (){
-					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-				});
-			} else { //touch
-				self._dragStartEvt = "touchstart";
-				// self._dragStartCB = function ( e ) {
-					// var t = e.originalEvent.targetTouches[0];
-					// return self._handleDragStart(e, t.pageX, t.pageY );
-				// };
-
-				self._dragMoveEvt = "touchmove";
-				self._dragMoveCB = function ( e ) {
-					// var t = e.originalEvent.targetTouches[0];
-					// return self._handleDragMove(e, t.pageX, t.pageY );
-					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-					return false;
-				};
-
-				self._dragStopEvt = "touchend";
-				// self._dragStopCB = function ( e ) {
-					// return self._handleDragStop( e );
-				// };
-				self._$view.bind( self._dragMoveEvt , self._dragMoveCB );
-			}
-			// self._$view.bind( self._dragStartEvt, self._dragStartCB );
-			// self._$view.bind( self._dragMoveCB + " " +self._dragStopEvt  , self._dragStartCB );
-			
-			
-			// self._$view.bind("scroll", function (){
-				// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-			// });
-			*/
-
-			var $header = $(".ui-footer .ui-title");
-			// self._$view[0].onscroll = function ( event ) {
-				// $header.text( self._$view[0].scrollTop );
-				// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-			// };
-
-
-
-			self._$view.bind("scrollstart", function ( event ) { // from jQM
-				console.log("scrollstart :: " + self._$view[0].scrollTop);
-				$header.text( self._$view[0].scrollTop );
-			}).bind("scrollstop", function ( event ){ // from jQM
-				console.log("scrollstop :: " + self._$view[0].scrollTop);
-				$header.text( "scrollstop :: " + self._$view[0].scrollTop );
-			});
 		},
 
 		refresh : function () {
@@ -325,6 +254,51 @@
 			self._tailItemIdx = rowsPerView + 2 ;
 		},
 
+		_addEventListener : function () {
+			var self = this,
+				templateItemSize = self._direction ? self._$templateItemSize.width: self._$templateItemSize.height,
+				$header = $(".ui-header .ui-title"),
+				$footer = $(".ui-footer .ui-title");
+
+			if ( self._eventType === 'mouse' ) { // mouse event.
+				// self._$view.bind( "scroll", function ( event ) {
+					// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+				// });
+				this._dragStartEvt = "mousedown";
+				this._dragStartCB = function(e){
+					return self._handleDragStart(e, e.clientX, e.clientY); 
+				};
+
+				this._dragMoveEvt = "mousemove";
+				this._dragMoveCB = function(e){
+					return self._handleDragMove(e, e.clientX, e.clientY);
+				};
+
+				this._dragStopEvt = "mouseup";
+				this._dragStopCB = function(e){
+					return self._handleDragStop(e);
+				};
+			} else { // touch event.
+				self._dragStartEvt = "touchstart";
+				self._dragStartCB = function ( e ) {
+					var t = e.originalEvent.targetTouches[0];
+					return self._handleDragStart(e, t.pageX, t.pageY );
+				};
+
+				self._dragMoveEvt = "touchmove";
+				self._dragMoveCB = function ( e ) {
+					var t = e.originalEvent.targetTouches[0];
+					return self._handleDragMove(e, t.pageX, t.pageY );
+				};
+
+				self._dragStopEvt = "touchend";
+				self._dragStopCB = function ( e ) {
+					return self._handleDragStop( e );
+				};
+			}
+				self._$view.bind( self._dragStartEvt, self._dragStartCB );
+		},
+
 		_getinheritedSize : function ( elem ) {
 			var $target = $(elem),
 				height,
@@ -356,6 +330,140 @@
 			return ret;
 		},
 
+
+		//----------------------------------------------------//
+		//		scroll handler								//
+		//----------------------------------------------------//
+		_handleMomentumScroll : function ( context ) {
+			var self =  this,
+				keepGoing = true,
+				curScrollPos = self._$view[0].scrollTop,
+				templateItemSize = self._direction ? self._$templateItemSize.width : self._$templateItemSize.height,
+				$header = $(".ui-header .ui-title");
+
+			console.log("\t++scroll :: " + self._$view[0].scrollTop + ": " +self._timerInterval + "ms ");
+			self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+			$header.text("( " + self.__callCnt+ " ) " + self._$view[0].scrollTop  + " px");
+			self.__callCnt ++;
+
+			// if ( !self._easingStart && curScrollPos === self._prevScrollPos ) {
+				// keepGoing = false;
+			// }
+
+			// if ( keepGoing ) {
+				// self._timerID = setTimeout( self._timerCB, self._timerInterval );
+				// $header.text("-tracker moving ( "+self._timerID+")- ");
+				// self._prevScrollPos = self._$view[0].scrollTop;
+				// self._easingStart = false;
+			// } else {
+				// $header.text(self._storedScrollPos + "-" +self._$view[0].scrollTop + " /" + templateItemSize);
+				// self._stopMScroll();
+			// }
+
+			if ( self._prevScrollPos >= 200 ) {
+				$(".ui-footer .ui-title").text( curScrollPos );
+				self._prevScrollPos++;
+				self._timerID = setTimeout( self._timerCB, self._timerInterval );
+			}
+
+
+		},
+
+		_handleDragStart : function ( event, x, y ) {
+			var self = this;
+
+			self._stopMScroll();
+			$(".ui-header .ui-title").text( "handleDragStart" );
+			self._enableTracking();
+
+
+			// event.stopPropagation();
+		},
+
+		_handleDragMove : function ( event, x, y ) {
+			var self = this;
+
+			// self._stopMScroll();
+			// self._enableTracking();
+			$(".ui-header .ui-title").text( "handleDragMove" );
+			self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+		},
+
+		_handleDragStop : function ( event, x, y ) {
+			var self = this;
+
+			$(".ui-header .ui-title").text( "_handleDragStop : "  + self._$view[0].scrollTop );
+			self._prevScrollPos = 0;
+			self._easingStart = true;
+			self._handleMomentumScroll();
+		},
+
+		_stopMScroll: function () {
+			if ( this._timerID ) {
+				clearTimeout( this._timerID );
+			}
+			this._timerID = 0;
+			this._disableTracking();
+		},
+
+		_startMScroll: function ( speedX, speedY ) {
+			var keepGoing = false,
+				duration = 1000,
+				ht = this._hTracker,
+				vt = this._vTracker,
+				c,
+				v;
+
+			if ( ht ) {
+				c = this._$clip.width();
+				v = this._$view.width();
+
+				if ( (( this._sx === 0 && speedX > 0 ) ||
+					( this._sx === -(v - c) && speedX < 0 )) &&
+						v > c ) {
+					return;
+				}
+
+				ht.start( this._sx, speedX,
+					duration, (v > c) ? -(v - c) : 0, 0 );
+				keepGoing = !ht.done();
+			}
+
+			if ( vt ) {
+				c = this._$clip.height();
+				v = this._getViewHeight();
+
+				if ( (( this._sy === 0 && speedY > 0 ) ||
+					( this._sy === -(v - c) && speedY < 0 )) &&
+						v > c ) {
+					return;
+				}
+
+				vt.start( this._sy, speedY,
+					duration, (v > c) ? -(v - c) : 0, 0 );
+				keepGoing = keepGoing || !vt.done();
+			}
+
+			if ( keepGoing ) {
+				this._timerID = setTimeout( this._timerCB, this._timerInterval );
+			} else {
+				this._stopMScroll();
+			}
+		},
+
+		_enableTracking: function () {
+			var self = this;
+			self._$view.bind( self._dragMoveEvt, self._dragMoveCB );
+			self._$view.bind( self._dragStopEvt, self._dragStopCB );
+		},
+
+		_disableTracking: function () {
+			var self = this;
+			self._$view.unbind( self._dragMoveEvt, self._dragMoveCB );
+			self._$view.unbind( self._dragStopEvt, self._dragStopCB );
+		},
+
+
 		//----------------------------------------------------//
 		//		Calculate size about dom element.		//
 		//----------------------------------------------------//
@@ -383,7 +491,9 @@
 			diffPos = curPos - prevPos;
 			di = parseInt( diffPos / templateItemSize, 10 );
 
-			console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
+			//console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
+
+			// $(".ui-footer .ui-title").text("pos : " + self._storedScrollPos + " - "+ curPos );
 			if ( di > 0 && self._tailItemIdx < self._totalRowCnt ) { // scroll down
 				if ( self._tailItemIdx + 1 === self._totalRowCnt ) {
 						console.log ("break;");
@@ -391,6 +501,7 @@
 				for ( i = 0; i < di; i++ ) {
 					$row = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
 					self._replaceRow( $row, self._tailItemIdx );
+					// $(".ui-footer .ui-title").text("replace : " + self._headItemIdx + " -> "+ self._tailItemIdx);
 					self._tailItemIdx++;
 					self._headItemIdx++;
 				}
@@ -401,6 +512,7 @@
 					self._headItemIdx--;
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
 					self._replaceRow( $row, self._headItemIdx );
+					// $(".ui-footer .ui-title").text("replace : " + self._tailItemIdx  + " -> "+ self._headItemIdx);
 				}
 				self._storedScrollPos += di * templateItemSize;
 			}
@@ -408,7 +520,6 @@
 			if ( diffPos < 0 ) {
 				$row =  $( "[row-index='" + self._headItemIdx + "']", self._$content );
 				if ( $row.position()[attrName] > curPos ) {
-					console.log("\n>>>>>>>>>>> exception case :: \n")
 					self._tailItemIdx--;
 					self._headItemIdx--;
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
@@ -416,7 +527,7 @@
 				}
 			}
 
-			console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
+			//console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
 		},
 
 		//----------------------------------------------------//
