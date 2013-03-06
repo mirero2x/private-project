@@ -23,6 +23,27 @@
  *	Author: Kangsik Kim <kangsik81.kim@samsung.com>
 */
 
+/*
+ * For test... 
+ */
+
+window._indentCnt = 0;
+window._indents = function () {
+	var ret = "";
+	for ( var i = 0 ; i < window._indentCnt ; i++ ) {
+		ret += "  ";
+	}
+	return ret;
+};
+
+
+window.log = function ( msg ) {
+	if ( window.myLog ) {
+		myLog( msg );
+	} else {
+		console.log( msg );
+	}
+};
 
 ( function ($, window, document, undefined) {
 
@@ -69,6 +90,126 @@
  return width;
 };
 
+function MomentumTracker(options)
+{
+	// this.options = $.extend({}, options);
+	this.options = {
+		overshootDuration : 250,
+		snapbackDuration : 500
+	};
+	// this.easing = "easeOutQuad";
+	this.easing = $.easing['easeOutQuad'] || function (x, t, b, c, d) {
+		return -c *(t/=d)*(t-2) + b;
+	};
+	this.reset();
+}
+
+var tstates = {
+	scrolling: 0,
+	overshot:  1,
+	snapback:  2,
+	done:      3
+};
+
+function getCurrentTime() { return (new Date()).getTime(); }
+
+$.extend(MomentumTracker.prototype, {
+	start: function(pos, speed, duration, minPos, maxPos)
+	{
+		this.state = (speed !== 0) ? ((pos > minPos && pos < maxPos) ? tstates.scrolling : tstates.snapback ) : tstates.done;
+		this.pos = pos;
+		this.speed = speed;
+		this.duration = (this.state == tstates.snapback) ? this.options.snapbackDuration : duration;
+		this.minPos = minPos;
+		this.maxPos = maxPos;
+
+		this.fromPos = (this.state == tstates.snapback) ? 0 : this.pos;
+		this.toPos = (this.state == tstates.snapback) ? ((this.pos < this.minPos) ? this.minPos : this.maxPos) : 0;
+
+		this.startTime = getCurrentTime();
+	},
+
+	reset: function()
+	{
+		this.state = tstates.done;
+		this.pos = 0;
+		this.speed = 0;
+		this.minPos = 0;
+		this.maxPos = 0;
+		this.duration = 0;
+	},
+
+	update: function()
+	{
+		var state = this.state;
+		if (state == tstates.done)
+			return this.pos;
+
+		var duration = this.duration;
+		var elapsed = getCurrentTime() - this.startTime;
+		elapsed = elapsed > duration ? duration : elapsed;
+
+		if (state == tstates.scrolling || state == tstates.overshot)
+		{
+			// var dx = this.speed * (1 - $.easing[this.easing](elapsed/duration, elapsed, 0, 1, duration));
+			var dx = this.speed * (1 - this.easing(elapsed/duration, elapsed, 0, 1, duration));
+			var x = this.pos + dx;
+	
+			var didOverShoot = (state == tstates.scrolling) && (x < this.minPos || x > this.maxPos);
+			if (didOverShoot)
+				x = (x < this.minPos) ? this.minPos : this.maxPos;
+		
+			this.pos = x;
+	
+			if (state == tstates.overshot)
+			{
+				if (elapsed >= duration)
+				{
+					this.state = tstates.snapback;
+					this.fromPos = this.pos;
+					this.toPos = (x < this.minPos) ? this.minPos : this.maxPos;
+					this.duration = this.options.snapbackDuration;
+					this.startTime = getCurrentTime();
+					elapsed = 0;
+				}
+			}
+			else if (state == tstates.scrolling)
+			{
+				if (didOverShoot)
+				{
+					this.state = tstates.overshot;
+					this.speed = dx / 2;
+					this.duration = this.options.overshootDuration;
+					this.startTime = getCurrentTime();
+				}
+				else if (elapsed >= duration) {
+					this.state = tstates.done;
+				} else if ( this.pos <= this.minPos || this.pos > this.maxPos ) {
+					this.state = tstates.done;
+				}
+			}
+		}
+		else if (state == tstates.snapback)
+		{
+			if (elapsed >= duration)
+			{
+				this.pos = this.toPos;
+				this.state = tstates.done;		
+			}
+			else {
+				// this.pos = this.fromPos + ((this.toPos - this.fromPos) * $.easing[this.easing](elapsed/duration, elapsed, 0, 1, duration));
+				this.pos = this.fromPos + ((this.toPos - this.fromPos) * this.easing(elapsed/duration, elapsed, 0, 1, duration));
+			}
+		}
+
+		return this.pos;
+	},
+
+	done: function() { return this.state == tstates.done; },
+	getPosition: function(){ return this.pos; }
+});
+
+
 	jQuery.widget ("mobile.virtualgrid", jQuery.mobile.widget, {
 		// view
 		_$view : null,
@@ -90,6 +231,23 @@
 		_$templateItemSize : {
 			width :0,
 			height : 0
+		},
+
+		// move시 이전의 페이지 좌표
+		_prevPos : {
+			x : 0,
+			y : 0,
+		},
+
+		// move시 현재의 페이지 좌표
+		_curPos : {
+			x : 0,
+			y : 0,
+		},
+		
+		_startPos : {
+			x : 0,
+			y : 0,
 		},
 
 		// Data
@@ -155,6 +313,9 @@
 
 			// set a scroll direction.
 			self._direction = opts.direction === 'x' ? true : false;
+
+			// create trakcer
+			self._tracker = new MomentumTracker();
 
 			// make view layer
 			self._$clip = $( self.element ).addClass("ui-scrollview-clip").addClass("ui-virtualgrid-view");
@@ -261,9 +422,10 @@
 				$footer = $(".ui-footer .ui-title");
 
 			if ( self._eventType === 'mouse' ) { // mouse event.
-				// self._$view.bind( "scroll", function ( event ) {
-					// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-				// });
+				self._$view.bind( "scroll", function ( event ) {
+					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+				});
+
 				this._dragStartEvt = "mousedown";
 				this._dragStartCB = function(e){
 					return self._handleDragStart(e, e.clientX, e.clientY); 
@@ -282,6 +444,10 @@
 				self._dragStartEvt = "touchstart";
 				self._dragStartCB = function ( e ) {
 					var t = e.originalEvent.targetTouches[0];
+					log(">> preventDefault ");
+					e.preventDefault();
+					e.stopPropagation();
+					
 					return self._handleDragStart(e, t.pageX, t.pageY );
 				};
 
@@ -330,21 +496,21 @@
 			return ret;
 		},
 
-
 		//----------------------------------------------------//
 		//		scroll handler								//
 		//----------------------------------------------------//
 		_handleMomentumScroll : function ( context ) {
 			var self =  this,
-				keepGoing = true,
+				keepGoing = false,
 				curScrollPos = self._$view[0].scrollTop,
 				templateItemSize = self._direction ? self._$templateItemSize.width : self._$templateItemSize.height,
-				$header = $(".ui-header .ui-title");
+				$header = $(".ui-header .ui-title"),
+				x = 0, y = 0;
 
-			console.log("\t++scroll :: " + self._$view[0].scrollTop + ": " +self._timerInterval + "ms ");
-			self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-			$header.text("( " + self.__callCnt+ " ) " + self._$view[0].scrollTop  + " px");
-			self.__callCnt ++;
+			//console.log("\t++scroll :: " + self._$view[0].scrollTop + ": " +self._timerInterval + "ms ");
+			// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+			// $header.text("( " + self.__callCnt+ " ) " + self._$view[0].scrollTop  + " px");
+			// self.__callCnt ++;
 
 			// if ( !self._easingStart && curScrollPos === self._prevScrollPos ) {
 				// keepGoing = false;
@@ -360,42 +526,97 @@
 				// self._stopMScroll();
 			// }
 
-			if ( self._prevScrollPos >= 200 ) {
-				$(".ui-footer .ui-title").text( curScrollPos );
-				self._prevScrollPos++;
-				self._timerID = setTimeout( self._timerCB, self._timerInterval );
+			var tracker = this._tracker;
+			if ( tracker )
+			{
+				tracker.update();
+				x = tracker.getPosition();
+				keepGoing = keepGoing || !tracker.done();
+				
 			}
 
-
+			console.log("\t\ttracker : current scroll top.... " + self._$view[0].scrollTop + " - " + x + " / "+ ( self._$view[0].scrollTop + x));
+			self._setScrollPosition(self._$view[0].scrollLeft, x );
+			
+			// if ( self._prevScrollPos <= 300 ) {
+			if ( keepGoing ) {
+				$(".ui-footer .ui-title").text( self._prevScrollPos + " : " + curScrollPos );
+				// console.log(" move : current scroll top.... " + self._$view[0].scrollTop);
+				self._prevScrollPos++;
+				self._timerID = setTimeout( self._timerCB, self._timerInterval );
+			} else {
+				console.log(" stop : current scroll top.... " + self._$view[0].scrollTop);
+				self._stopMScroll();
+			}
 		},
 
 		_handleDragStart : function ( event, x, y ) {
 			var self = this;
 
+			log( window._indents() + "handle Drag start");
+			window._indentCnt++;
+	
 			self._stopMScroll();
-			$(".ui-header .ui-title").text( "handleDragStart" );
+			$(".ui-header .ui-title").text(" start  x : " + x + "/ y : " + y);
 			self._enableTracking();
-
-
-			// event.stopPropagation();
+			self._curPos.x = 0;
+			self._curPos.y = 0;
+			self._prevPos.x = 0;
+			self._prevPos.y = 0;
+			self._startPos.x = x;
+			self._startPos.y = y;
+			// for my control.
+			self._scrolling = false; // 2번째 무브부터 이동이 이루어져야 함.
+			// log(window._indents() + "current scroll top : "+ self._$view[0].scrollTop  + " - left " + self._$view[0].scrollLeft);
+			self._startTime = (new Date()).getTime();
+			event.stopPropagation();
 		},
 
 		_handleDragMove : function ( event, x, y ) {
-			var self = this;
+			var self = this,
+				newY = 0,
+				distanceY =0;
 
 			// self._stopMScroll();
 			// self._enableTracking();
-			$(".ui-header .ui-title").text( "handleDragMove" );
-			self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+			// $(".ui-header .ui-title").text( "handleDragMove" );
+			// self._lastPos2 = self._$view[0].scrollTop;
+			self._lastPos2 = y;
+			self._prevPos.x = self._curPos.x;
+			self._prevPos.y = self._curPos.y;
+			self._curPos.x = x;
+			self._curPos.y = y;
+			self._startTime = (new Date()).getTime();
+			// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+
+			// for my control.
+			if ( self._scrolling ) {
+				distanceY = self._curPos.y - self._prevPos.y;
+				newY = self._$view[0].scrollTop - distanceY;
+	
+				// log( "distanceY : " + distanceY + "px / newY : " + newY + " px");
+				self._setScrollPosition(self._$view[0].scrollLeft, newY );
+			} else {
+				self._scrolling = true;
+			}
+
 		},
 
-		_handleDragStop : function ( event, x, y ) {
-			var self = this;
+		_handleDragStop : function ( event ) {
+			var self = this,
+				distanceY = self._curPos.y - self._prevPos.y,
+				distanceX = self._curPos.x - self._prevPos.x;
 
-			$(".ui-header .ui-title").text( "_handleDragStop : "  + self._$view[0].scrollTop );
+			$(".ui-header .ui-title").text( self._$view[0].scrollTop + " / " + ( Math.abs( self._startPos.y - self._curPos.y ) ) + " / " + ( (new Date()).getTime() - self._startTime )+"ms");
 			self._prevScrollPos = 0;
 			self._easingStart = true;
-			self._handleMomentumScroll();
+
+			// self._handleMomentumScroll();
+			// self._stopMScroll();
+
+			self._startMScroll(-distanceX, -distanceY);
+			window._indentCnt--;
+			log(window._indents() +"Event : scroll stop....");
 		},
 
 		_stopMScroll: function () {
@@ -403,47 +624,65 @@
 				clearTimeout( this._timerID );
 			}
 			this._timerID = 0;
+			this._tracker.reset();
 			this._disableTracking();
 		},
 
 		_startMScroll: function ( speedX, speedY ) {
 			var keepGoing = false,
-				duration = 1000,
-				ht = this._hTracker,
+				duration = 1500,
+				tracker = this._tracker,
 				vt = this._vTracker,
-				c,
+				c, startYPos,
 				v;
 
-			if ( ht ) {
-				c = this._$clip.width();
-				v = this._$view.width();
+			// if ( ht ) {
+				// c = this._$clip.width();
+				// v = this._$view.width();
+// 
+				// if ( (( this._sx === 0 && speedX > 0 ) ||
+					// ( this._sx === -(v - c) && speedX < 0 )) &&
+						// v > c ) {
+					// return;
+				// }
+// 
+				// ht.start( this._sx, speedX,
+					// duration, (v > c) ? -(v - c) : 0, 0 );
+				// keepGoing = !ht.done();
+			// }
 
-				if ( (( this._sx === 0 && speedX > 0 ) ||
-					( this._sx === -(v - c) && speedX < 0 )) &&
-						v > c ) {
-					return;
-				}
-
-				ht.start( this._sx, speedX,
-					duration, (v > c) ? -(v - c) : 0, 0 );
-				keepGoing = !ht.done();
-			}
-
-			if ( vt ) {
+			// if ( vt ) {
+				// c = this._$clip.height();
+				// v = this._getViewHeight();
+// 
+				// if ( (( this._sy === 0 && speedY > 0 ) ||
+					// ( this._sy === -(v - c) && speedY < 0 )) &&
+						// v > c ) {
+					// return;
+				// }
+// 
+				// vt.start( this._sy, speedY,
+					// duration, (v > c) ? -(v - c) : 0, 0 );
+				// keepGoing = keepGoing || !vt.done();
+			// }
+			log( window._indents() + "start pos : " + this._$view[0].scrollTop +" startMScroll - speedX : " + speedX + " - speedY : " + speedY );
+			if ( tracker ) {
 				c = this._$clip.height();
-				v = this._getViewHeight();
+				v = this._$content.height();
+				startYPos = this._$view[0].scrollTop;
 
-				if ( (( this._sy === 0 && speedY > 0 ) ||
-					( this._sy === -(v - c) && speedY < 0 )) &&
+				if ( (( startYPos === 0 && speedY > 0 ) ||
+					( startYPos === (v - c) && speedY < 0 )) &&
 						v > c ) {
 					return;
 				}
 
-				vt.start( this._sy, speedY,
-					duration, (v > c) ? -(v - c) : 0, 0 );
-				keepGoing = keepGoing || !vt.done();
+				tracker.start( startYPos, speedY,
+					duration, 0, (v > c) ? (v - c) : 0 );
+				keepGoing = keepGoing || !tracker.done();
 			}
 
+			log ( "keepGoing : " + keepGoing );
 			if ( keepGoing ) {
 				this._timerID = setTimeout( this._timerCB, this._timerInterval );
 			} else {
@@ -455,14 +694,15 @@
 			var self = this;
 			self._$view.bind( self._dragMoveEvt, self._dragMoveCB );
 			self._$view.bind( self._dragStopEvt, self._dragStopCB );
+			log(window._indents() + ">>> _enableTracking");
 		},
 
 		_disableTracking: function () {
 			var self = this;
 			self._$view.unbind( self._dragMoveEvt, self._dragMoveCB );
 			self._$view.unbind( self._dragStopEvt, self._dragStopCB );
+			log(window._indents() + ">>> _enableTracking");
 		},
-
 
 		//----------------------------------------------------//
 		//		Calculate size about dom element.		//
@@ -479,6 +719,8 @@
 				idx = 0,
 				$row = null;
 
+			window._indentCnt++;
+
 			if ( self._direction ) {
 				curPos = x;
 				templateItemSize = self._$templateItemSize.width;
@@ -491,7 +733,7 @@
 			diffPos = curPos - prevPos;
 			di = parseInt( diffPos / templateItemSize, 10 );
 
-			//console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
+			// console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
 
 			// $(".ui-footer .ui-title").text("pos : " + self._storedScrollPos + " - "+ curPos );
 			if ( di > 0 && self._tailItemIdx < self._totalRowCnt ) { // scroll down
@@ -502,6 +744,8 @@
 					$row = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
 					self._replaceRow( $row, self._tailItemIdx );
 					// $(".ui-footer .ui-title").text("replace : " + self._headItemIdx + " -> "+ self._tailItemIdx);
+					// console.log(" +---- replace ("+di+"):  " + self._headItemIdx + " -> "+ self._tailItemIdx);
+					// log(" +---- replace ("+di+"):  " + self._headItemIdx + " -> "+ self._tailItemIdx);
 					self._tailItemIdx++;
 					self._headItemIdx++;
 				}
@@ -513,6 +757,8 @@
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
 					self._replaceRow( $row, self._headItemIdx );
 					// $(".ui-footer .ui-title").text("replace : " + self._tailItemIdx  + " -> "+ self._headItemIdx);
+					// console.log(" +---- replace ("+di+"): " + self._tailItemIdx  + " -> "+ self._headItemIdx);
+					// log(" +---- replace ("+di+"): " + self._tailItemIdx  + " -> "+ self._headItemIdx);
 				}
 				self._storedScrollPos += di * templateItemSize;
 			}
@@ -527,7 +773,15 @@
 				}
 			}
 
-			//console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
+			if ( self._direction ) { 
+			} else {
+				self._$view[0].scrollTop = y;
+				// log("move scroll position : " + y + " px.");
+			}
+
+			window._indentCnt--;
+
+			// console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
 		},
 
 		//----------------------------------------------------//
