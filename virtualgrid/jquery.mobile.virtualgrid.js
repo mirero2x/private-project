@@ -92,11 +92,6 @@ window.log = function ( msg ) {
 
 function MomentumTracker(options)
 {
-	// this.options = $.extend({}, options);
-	this.options = {
-		overshootDuration : 250,
-		snapbackDuration : 500
-	};
 	// this.easing = "easeOutQuad";
 	this.easing = $.easing['easeOutQuad'] || function (x, t, b, c, d) {
 		return -c *(t/=d)*(t-2) + b;
@@ -119,7 +114,7 @@ $.extend(MomentumTracker.prototype, {
 		this.state = (speed !== 0) ? ((pos > minPos && pos < maxPos) ? tstates.scrolling : tstates.snapback ) : tstates.done;
 		this.pos = pos;
 		this.speed = speed;
-		this.duration = (this.state == tstates.snapback) ? this.options.snapbackDuration : duration;
+		this.duration = duration;
 		this.minPos = minPos;
 		this.maxPos = maxPos;
 
@@ -541,24 +536,16 @@ $.extend(MomentumTracker.prototype, {
 				newY = 0,
 				distanceY =0;
 
-			// self._stopMScroll();
-			// self._enableTracking();
-			// $(".ui-header .ui-title").text( "handleDragMove" );
-			// self._lastPos2 = self._$view[0].scrollTop;
 			self._lastPos2 = y;
 			self._prevPos.x = self._curPos.x;
 			self._prevPos.y = self._curPos.y;
 			self._curPos.x = x;
 			self._curPos.y = y;
 			self._startTime = (new Date()).getTime();
-			// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
 
-			// for my control.
 			if ( self._scrolling ) {
 				distanceY = self._curPos.y - self._prevPos.y;
 				newY = self._$view[0].scrollTop - distanceY;
-	
-				// log( "distanceY : " + distanceY + "px / newY : " + newY + " px");
 				self._setScrollPosition(self._$view[0].scrollLeft, newY );
 			} else {
 				self._scrolling = true;
@@ -693,7 +680,6 @@ $.extend(MomentumTracker.prototype, {
 			di = parseInt( diffPos / templateItemSize, 10 );
 
 			// console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
-
 			// $(".ui-footer .ui-title").text("pos : " + self._storedScrollPos + " - "+ curPos );
 			if ( di > 0 && self._tailItemIdx < self._totalRowCnt ) { // scroll down
 				if ( self._tailItemIdx + 1 === self._totalRowCnt ) {
@@ -702,11 +688,9 @@ $.extend(MomentumTracker.prototype, {
 				for ( i = 0; i < di; i++ ) {
 					$row = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
 					self._replaceRow( $row, self._tailItemIdx );
-					// $(".ui-footer .ui-title").text("replace : " + self._headItemIdx + " -> "+ self._tailItemIdx);
-					// console.log(" +---- replace ("+di+"):  " + self._headItemIdx + " -> "+ self._tailItemIdx);
-					// log(" +---- replace ("+di+"):  " + self._headItemIdx + " -> "+ self._tailItemIdx);
 					self._tailItemIdx++;
 					self._headItemIdx++;
+					self._clearSelectedDom();
 				}
 				self._storedScrollPos += di * templateItemSize;
 			} else if ( di < 0 ) { // scroll up
@@ -715,9 +699,7 @@ $.extend(MomentumTracker.prototype, {
 					self._headItemIdx--;
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
 					self._replaceRow( $row, self._headItemIdx );
-					// $(".ui-footer .ui-title").text("replace : " + self._tailItemIdx  + " -> "+ self._headItemIdx);
-					// console.log(" +---- replace ("+di+"): " + self._tailItemIdx  + " -> "+ self._headItemIdx);
-					// log(" +---- replace ("+di+"): " + self._tailItemIdx  + " -> "+ self._headItemIdx);
+					self._clearSelectedDom();
 				}
 				self._storedScrollPos += di * templateItemSize;
 			}
@@ -732,7 +714,7 @@ $.extend(MomentumTracker.prototype, {
 				}
 			}
 
-			if ( self._direction ) { 
+			if ( self._direction ) {
 			} else {
 				self._$view[0].scrollTop = y;
 				// log("move scroll position : " + y + " px.");
@@ -1043,6 +1025,16 @@ $.extend(MomentumTracker.prototype, {
 				index = temp.indexOf( stringToFind );
 			}
 			return temp;
+		},
+
+		_clearSelectedDom : function ( ) {
+			if ( window.getSelection ) {
+				// Mozilla
+				window.getSelection().removeAllRanges();
+			} else {
+				// IE
+				document.selection.empty()
+			}
 		}
 
 	} );
