@@ -177,19 +177,6 @@ $.extend(MomentumTracker.prototype, {
 			}
 			else if (state == tstates.scrolling)
 			{
-				// if (didOverShoot)
-				// {
-					// this.state = tstates.overshot;
-					// this.speed = dx / 2;
-					// this.duration = this.options.overshootDuration;
-					// this.startTime = getCurrentTime();
-				// }
-				// else if (elapsed >= duration) {
-					// this.state = tstates.done;
-				// } else if ( this.pos <= this.minPos || this.pos > this.maxPos ) {
-					// console.log("min or max " + this.pos);
-					// this.state = tstates.done;
-				// }
 				if ( didOverShoot || elapsed >= duration) {
 					this.state = tstates.done;
 				} else if ( this.pos <= this.minPos || this.pos > this.maxPos ) {
@@ -200,16 +187,7 @@ $.extend(MomentumTracker.prototype, {
 		}
 		else if (state == tstates.snapback)
 		{
-			console.log("state is snapback..." + this.pos  + "px");
-			// if (elapsed >= duration)
-			// {
-				// this.pos = this.toPos;
-				this.state = tstates.done;
-			// }
-			// else {
-				// // this.pos = this.fromPos + ((this.toPos - this.fromPos) * $.easing[this.easing](elapsed/duration, elapsed, 0, 1, duration));
-				// this.pos = this.fromPos + ((this.toPos - this.fromPos) * this.easing(elapsed/duration, elapsed, 0, 1, duration));
-			// }
+			this.state = tstates.done;
 		}
 
 		return this.pos;
@@ -434,6 +412,10 @@ $.extend(MomentumTracker.prototype, {
 					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
 				});
 
+				self._$content.delegate( "img", "dragstart", function ( event ) {
+					event.preventDefault();
+				});
+
 				this._dragStartEvt = "mousedown";
 				this._dragStartCB = function(e){
 					return self._handleDragStart(e, e.clientX, e.clientY); 
@@ -515,25 +497,6 @@ $.extend(MomentumTracker.prototype, {
 				$header = $(".ui-header .ui-title"),
 				x = 0, y = 0;
 
-			//console.log("\t++scroll :: " + self._$view[0].scrollTop + ": " +self._timerInterval + "ms ");
-			// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-			// $header.text("( " + self.__callCnt+ " ) " + self._$view[0].scrollTop  + " px");
-			// self.__callCnt ++;
-
-			// if ( !self._easingStart && curScrollPos === self._prevScrollPos ) {
-				// keepGoing = false;
-			// }
-
-			// if ( keepGoing ) {
-				// self._timerID = setTimeout( self._timerCB, self._timerInterval );
-				// $header.text("-tracker moving ( "+self._timerID+")- ");
-				// self._prevScrollPos = self._$view[0].scrollTop;
-				// self._easingStart = false;
-			// } else {
-				// $header.text(self._storedScrollPos + "-" +self._$view[0].scrollTop + " /" + templateItemSize);
-				// self._stopMScroll();
-			// }
-
 			var tracker = this._tracker;
 			if ( tracker )
 			{
@@ -542,13 +505,10 @@ $.extend(MomentumTracker.prototype, {
 				keepGoing = keepGoing || !tracker.done();
 			}
 
-			// console.log("\t\ttracker : current scroll top.... " + self._$view[0].scrollTop + " - " + x + " / "+ ( self._$view[0].scrollTop + x));
 			self._setScrollPosition(self._$view[0].scrollLeft, x );
 			
 			if ( keepGoing ) {
 				$(".ui-footer .ui-title").text( self._prevScrollPos + " : " + curScrollPos );
-				// console.log(" move : current scroll top.... " + self._$view[0].scrollTop);
-				self._prevScrollPos++;
 				self._timerID = setTimeout( self._timerCB, self._timerInterval );
 			} else {
 				console.log(" stop : current scroll top.... " + self._$view[0].scrollTop);
@@ -611,12 +571,6 @@ $.extend(MomentumTracker.prototype, {
 				distanceY = self._curPos.y - self._prevPos.y,
 				distanceX = self._curPos.x - self._prevPos.x;
 
-			self._prevScrollPos = 0;
-			self._easingStart = true;
-
-			// self._handleMomentumScroll();
-			// self._stopMScroll();
-
 			self._startMScroll(-distanceX, -distanceY);
 			window._indentCnt--;
 			log(window._indents() +"Event : scroll stop....");
@@ -629,6 +583,7 @@ $.extend(MomentumTracker.prototype, {
 			this._timerID = 0;
 			this._tracker.reset();
 			this._disableTracking();
+			window._indentCnt --;
 		},
 
 		_startMScroll: function ( speedX, speedY ) {
@@ -672,6 +627,7 @@ $.extend(MomentumTracker.prototype, {
 				// keepGoing = keepGoing || !vt.done();
 			// }
 			log( window._indents() + "start pos : " + this._$view[0].scrollTop +" startMScroll - speedX : " + speedX + " - speedY : " + speedY );
+			window._indentCnt ++;
 			if ( tracker ) {
 				c = this._$clip.height();
 				v = this._$content.height();
@@ -697,16 +653,12 @@ $.extend(MomentumTracker.prototype, {
 
 		_enableTracking: function () {
 			var self = this;
-			// self._$view.bind( self._dragMoveEvt, self._dragMoveCB );
-			// self._$view.bind( self._dragStopEvt, self._dragStopCB );
 			self._$document.bind( self._dragMoveEvt, self._dragMoveCB );
 			self._$document.bind( self._dragStopEvt, self._dragStopCB );
 		},
 
 		_disableTracking: function () {
 			var self = this;
-			// self._$view.unbind( self._dragMoveEvt, self._dragMoveCB );
-			// self._$view.unbind( self._dragStopEvt, self._dragStopCB );
 			self._$document.unbind( self._dragMoveEvt, self._dragMoveCB );
 			self._$document.unbind( self._dragStopEvt, self._dragStopCB );
 		},
