@@ -156,8 +156,10 @@ $.extend(MomentumTracker.prototype, {
 			var x = this.pos + dx;
 	
 			var didOverShoot = (state == tstates.scrolling) && (x < this.minPos || x > this.maxPos);
-			if (didOverShoot)
+			if (didOverShoot) {
 				x = (x < this.minPos) ? this.minPos : this.maxPos;
+				console.log("didOverShot : " + state + " - " + x + " px.");
+			}
 		
 			this.pos = x;
 	
@@ -175,31 +177,39 @@ $.extend(MomentumTracker.prototype, {
 			}
 			else if (state == tstates.scrolling)
 			{
-				if (didOverShoot)
-				{
-					this.state = tstates.overshot;
-					this.speed = dx / 2;
-					this.duration = this.options.overshootDuration;
-					this.startTime = getCurrentTime();
-				}
-				else if (elapsed >= duration) {
+				// if (didOverShoot)
+				// {
+					// this.state = tstates.overshot;
+					// this.speed = dx / 2;
+					// this.duration = this.options.overshootDuration;
+					// this.startTime = getCurrentTime();
+				// }
+				// else if (elapsed >= duration) {
+					// this.state = tstates.done;
+				// } else if ( this.pos <= this.minPos || this.pos > this.maxPos ) {
+					// console.log("min or max " + this.pos);
+					// this.state = tstates.done;
+				// }
+				if ( didOverShoot || elapsed >= duration) {
 					this.state = tstates.done;
 				} else if ( this.pos <= this.minPos || this.pos > this.maxPos ) {
+					console.log("min or max " + this.pos);
 					this.state = tstates.done;
 				}
 			}
 		}
 		else if (state == tstates.snapback)
 		{
-			if (elapsed >= duration)
-			{
-				this.pos = this.toPos;
-				this.state = tstates.done;		
-			}
-			else {
-				// this.pos = this.fromPos + ((this.toPos - this.fromPos) * $.easing[this.easing](elapsed/duration, elapsed, 0, 1, duration));
-				this.pos = this.fromPos + ((this.toPos - this.fromPos) * this.easing(elapsed/duration, elapsed, 0, 1, duration));
-			}
+			console.log("state is snapback..." + this.pos  + "px");
+			// if (elapsed >= duration)
+			// {
+				// this.pos = this.toPos;
+				this.state = tstates.done;
+			// }
+			// else {
+				// // this.pos = this.fromPos + ((this.toPos - this.fromPos) * $.easing[this.easing](elapsed/duration, elapsed, 0, 1, duration));
+				// this.pos = this.fromPos + ((this.toPos - this.fromPos) * this.easing(elapsed/duration, elapsed, 0, 1, duration));
+			// }
 		}
 
 		return this.pos;
@@ -215,6 +225,7 @@ $.extend(MomentumTracker.prototype, {
 		_$view : null,
 		_$clip : null,
 		_$content : null,
+		_$document : null,
 		_template : null,
 
 		_viewSize : 0,
@@ -233,19 +244,14 @@ $.extend(MomentumTracker.prototype, {
 			height : 0
 		},
 
-		// move시 이전의 페이지 좌표
+		// previous touch/mouse position in page..
 		_prevPos : {
 			x : 0,
 			y : 0,
 		},
 
-		// move시 현재의 페이지 좌표
+		// current touch/mouse position in page.
 		_curPos : {
-			x : 0,
-			y : 0,
-		},
-		
-		_startPos : {
 			x : 0,
 			y : 0,
 		},
@@ -302,6 +308,7 @@ $.extend(MomentumTracker.prototype, {
 			self._eventType = $.support.touch ? "touch" : "mouse";
 			self._scrollBarWidth = getScrollBarWidth() ;
 			self._fragment = document.createDocumentFragment();
+			self._$document = $( document );
 
 			// self._timerCB = self._handleMomentumScroll;
 			self._timerCB = function () {
@@ -393,6 +400,7 @@ $.extend(MomentumTracker.prototype, {
 			columnCount = self._calculateColumnCount();
 
 			totalRowCnt = parseInt(self._numItemData / columnCount , 10 );
+			log ( " Row Count :  " + totalRowCnt );
 			self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
 			self._itemCount = columnCount;
 
@@ -409,7 +417,7 @@ $.extend(MomentumTracker.prototype, {
 			self._$content.children().css(attributeName, templateSize + "px");
 
 			self._blockScroll = self._rowsPerView > self._totalRowCnt;
-			self._maxSize = ( self._totalRowCnt - self._rowsPerView ) * templateSize;
+			self._maxSize = self._totalRowCnt * templateSize;
 
 			self._$content.height(self._maxSize);
 			self._tailItemIdx = rowsPerView + 2 ;
@@ -532,13 +540,11 @@ $.extend(MomentumTracker.prototype, {
 				tracker.update();
 				x = tracker.getPosition();
 				keepGoing = keepGoing || !tracker.done();
-				
 			}
 
-			console.log("\t\ttracker : current scroll top.... " + self._$view[0].scrollTop + " - " + x + " / "+ ( self._$view[0].scrollTop + x));
+			// console.log("\t\ttracker : current scroll top.... " + self._$view[0].scrollTop + " - " + x + " / "+ ( self._$view[0].scrollTop + x));
 			self._setScrollPosition(self._$view[0].scrollLeft, x );
 			
-			// if ( self._prevScrollPos <= 300 ) {
 			if ( keepGoing ) {
 				$(".ui-footer .ui-title").text( self._prevScrollPos + " : " + curScrollPos );
 				// console.log(" move : current scroll top.... " + self._$view[0].scrollTop);
@@ -563,8 +569,6 @@ $.extend(MomentumTracker.prototype, {
 			self._curPos.y = 0;
 			self._prevPos.x = 0;
 			self._prevPos.y = 0;
-			self._startPos.x = x;
-			self._startPos.y = y;
 			// for my control.
 			self._scrolling = false; // 2번째 무브부터 이동이 이루어져야 함.
 			// log(window._indents() + "current scroll top : "+ self._$view[0].scrollTop  + " - left " + self._$view[0].scrollLeft);
@@ -607,7 +611,6 @@ $.extend(MomentumTracker.prototype, {
 				distanceY = self._curPos.y - self._prevPos.y,
 				distanceX = self._curPos.x - self._prevPos.x;
 
-			$(".ui-header .ui-title").text( self._$view[0].scrollTop + " / " + ( Math.abs( self._startPos.y - self._curPos.y ) ) + " / " + ( (new Date()).getTime() - self._startTime )+"ms");
 			self._prevScrollPos = 0;
 			self._easingStart = true;
 
@@ -629,12 +632,15 @@ $.extend(MomentumTracker.prototype, {
 		},
 
 		_startMScroll: function ( speedX, speedY ) {
-			var keepGoing = false,
+			var self = this,
+				keepGoing = false,
 				duration = 1500,
 				tracker = this._tracker,
 				vt = this._vTracker,
 				c, startYPos,
 				v;
+
+			self._stopMScroll();
 
 			// if ( ht ) {
 				// c = this._$clip.width();
@@ -682,7 +688,6 @@ $.extend(MomentumTracker.prototype, {
 				keepGoing = keepGoing || !tracker.done();
 			}
 
-			log ( "keepGoing : " + keepGoing );
 			if ( keepGoing ) {
 				this._timerID = setTimeout( this._timerCB, this._timerInterval );
 			} else {
@@ -692,16 +697,18 @@ $.extend(MomentumTracker.prototype, {
 
 		_enableTracking: function () {
 			var self = this;
-			self._$view.bind( self._dragMoveEvt, self._dragMoveCB );
-			self._$view.bind( self._dragStopEvt, self._dragStopCB );
-			log(window._indents() + ">>> _enableTracking");
+			// self._$view.bind( self._dragMoveEvt, self._dragMoveCB );
+			// self._$view.bind( self._dragStopEvt, self._dragStopCB );
+			self._$document.bind( self._dragMoveEvt, self._dragMoveCB );
+			self._$document.bind( self._dragStopEvt, self._dragStopCB );
 		},
 
 		_disableTracking: function () {
 			var self = this;
-			self._$view.unbind( self._dragMoveEvt, self._dragMoveCB );
-			self._$view.unbind( self._dragStopEvt, self._dragStopCB );
-			log(window._indents() + ">>> _enableTracking");
+			// self._$view.unbind( self._dragMoveEvt, self._dragMoveCB );
+			// self._$view.unbind( self._dragStopEvt, self._dragStopCB );
+			self._$document.unbind( self._dragMoveEvt, self._dragMoveCB );
+			self._$document.unbind( self._dragStopEvt, self._dragStopCB );
 		},
 
 		//----------------------------------------------------//
