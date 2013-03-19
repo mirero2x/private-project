@@ -199,6 +199,7 @@ $.extend(MomentumTracker.prototype, {
 		_$clip : null,
 		_$content : null,
 		_$document : null,
+		_$scrollBar : null,
 		_template : null,
 
 		_viewSize : 0,
@@ -358,6 +359,8 @@ $.extend(MomentumTracker.prototype, {
 			self._$clipSize.height = height;
 			self._calculateTemplateItemSize();
 			self._initPageProperty();
+			self._createScrollBar();
+			self._setScrollBarSize();
 		},
 
 		_initPageProperty : function () {
@@ -584,41 +587,12 @@ $.extend(MomentumTracker.prototype, {
 
 			self._stopMScroll();
 
-			// if ( ht ) {
-				// c = this._$clip.width();
-				// v = this._$view.width();
-// 
-				// if ( (( this._sx === 0 && speedX > 0 ) ||
-					// ( this._sx === -(v - c) && speedX < 0 )) &&
-						// v > c ) {
-					// return;
-				// }
-// 
-				// ht.start( this._sx, speedX,
-					// duration, (v > c) ? -(v - c) : 0, 0 );
-				// keepGoing = !ht.done();
-			// }
-
-			// if ( vt ) {
-				// c = this._$clip.height();
-				// v = this._getViewHeight();
-// 
-				// if ( (( this._sy === 0 && speedY > 0 ) ||
-					// ( this._sy === -(v - c) && speedY < 0 )) &&
-						// v > c ) {
-					// return;
-				// }
-// 
-				// vt.start( this._sy, speedY,
-					// duration, (v > c) ? -(v - c) : 0, 0 );
-				// keepGoing = keepGoing || !vt.done();
-			// }
 			log( window._indents() + "start pos : " + this._$view[0].scrollTop +" startMScroll - speedX : " + speedX + " - speedY : " + speedY );
 			window._indentCnt ++;
 			if ( tracker ) {
 				c = this._$clip.height();
 				v = this._$content.height();
-				startYPos = this._$view[0].scrollTop;
+				startYPos = this._$view[ 0 ].scrollTop;
 
 				if ( (( startYPos === 0 && speedY > 0 ) ||
 					( startYPos === (v - c) && speedY < 0 )) &&
@@ -715,13 +689,13 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			if ( self._direction ) {
+				self._$view[ 0 ].scrollLeft = x;
 			} else {
-				self._$view[0].scrollTop = y;
-				// log("move scroll position : " + y + " px.");
+				self._$view[ 0 ].scrollTop = y;
 			}
+			self._setScrollBarPos( x, y );
 
 			window._indentCnt--;
-
 			// console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
 		},
 
@@ -802,6 +776,57 @@ $.extend(MomentumTracker.prototype, {
 			itemCount = parseInt( (viewSize / templateSize), 10);
 			console.log( " itemCount : %s (viewSize : %s , scrollBar size : %s  templateSize : %s )", itemCount, viewSize, self._scrollBarWidth, templateSize );
 			return itemCount > 0 ? itemCount : 1 ;
+		},
+
+		//----------------------------------------------------//
+		//		Scrollbar		//
+		//----------------------------------------------------//
+		_createScrollBar : function () {
+			var self = this,
+				$clip = self._$clip,
+				$scrollBar;
+
+			var prefix = "<div class=\"ui-scrollbar ui-scrollbar-";
+			var suffix = "\"><div class=\"ui-scrollbar-track\"><div class=\"ui-scrollbar-thumb\"></div></div></div>";
+			if ( self._direction ) {
+				$scrollBar = $( prefix + "x" + suffix )
+			} else {
+				$scrollBar = $( prefix + "y" + suffix )
+			}
+			self._$content.append( $scrollBar );
+			self._$scrollBar = $scrollBar.find( ".ui-scrollbar-thumb" );
+		},
+
+		_setScrollBarSize : function () {
+			var self = this,
+				size = 0,
+				$scrollBar = self._$scrollBar;
+
+			if ( self._direction ) {
+				size = parseInt( self._maxSize / self._$clipSize.width, 10 );
+				self._movePos = ( self._$clipSize.width ) / self._totalRowCnt;
+				$scrollBar.width( size );
+			} else {
+				size = parseInt ( Math.pow( self._$clipSize.height , 2) / self._maxSize , 10 );
+				size = size < 10 ? 10 : size;
+				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView -1 ));
+				console.log ( "size : %s / movePos : %s" , size, self._movePos );
+				$scrollBar.height( size );
+			}
+		},
+
+		_setScrollBarPos : function ( x, y ) {
+			var self = this,
+				pos = 0,
+				$scrollBar = self._$scrollBar;
+
+			if ( self._direction ) {
+				pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
+				$scrollBar.css ( "top" , pos  + "px");
+			} else {
+				pos = y + ( self._movePos * parseInt( y / self._$templateItemSize.height, 10 ) );
+				$scrollBar.css ( "top" , pos  + "px");
+			}
 		},
 
 		//----------------------------------------------------//
