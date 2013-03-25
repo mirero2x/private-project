@@ -359,8 +359,10 @@ $.extend(MomentumTracker.prototype, {
 			self._$clipSize.height = height;
 			self._calculateTemplateItemSize();
 			self._initPageProperty();
-			self._createScrollBar();
-			self._setScrollBarSize();
+			if ( self._eventType === 'touch' ) {
+				self._createScrollBar();
+				self._setScrollBarSize();
+			}
 		},
 
 		_initPageProperty : function () {
@@ -710,22 +712,24 @@ $.extend(MomentumTracker.prototype, {
 				clipSize = 0,
 				paddingName1, paddingName2, header, footer, $parent, $view;
 
-			if ( self._inheritedSize[difinedAttrName] ) {
-				return self._inheritedSize[attr];
+			if ( self._inheritedSize[ difinedAttrName ] ) {
+				return self._inheritedSize[ attr ];
 			}
 
 			$view = self._$clip;
 			$parent = $view.parents( ".ui-content" );
-			clipSize = window[ "inner" + ( axis ? "Height" : "Width" ) ];
+			// clipSize = window[ "inner" + ( axis ? "Height" : "Width" ) ];
 
 			if ( axis ) {
-				header = $parent.siblings(".ui-header");
-				footer = $parent.siblings(".ui-footer");
+				clipSize = window[ "innerHeight" ];
+				header = $parent.siblings( ".ui-header" );
+				footer = $parent.siblings( ".ui-footer" );
 				clipSize = clipSize - ( header.outerHeight( true ) || 0);
 				clipSize = clipSize - ( footer.outerHeight( true ) || 0);
 				paddingName1 = "padding-top";
 				paddingName2 = "padding-bottom";
 			} else {
+				clipSize = window[ "innerWidth" ];
 				paddingName1 = "padding-left";
 				paddingName2 = "padding-right";
 			}
@@ -736,7 +740,7 @@ $.extend(MomentumTracker.prototype, {
 				paddingValue = parseInt( $parent.css( paddingName2 ), 10 );
 				clipSize = clipSize - ( paddingValue || 0 );
 			} else {
-				clipSize = $view[attr]();
+				clipSize = $view[ attr ]();
 			}
 
 			return clipSize;
@@ -765,16 +769,14 @@ $.extend(MomentumTracker.prototype, {
 
 			var pushViewSize = viewSize;
 			if ( self._direction ) {
-				viewSize = viewSize - ( parseInt( $view.css("padding-top"), 10 ) + parseInt( $view.css("padding-bottom"), 10 ) );
+				viewSize = viewSize - ( parseInt( $view.css( "padding-top" ), 10 ) + parseInt( $view.css( "padding-bottom" ), 10 ) );
 			} else {
-				viewSize = viewSize - ( parseInt( $view.css("padding-left"), 10 ) + parseInt( $view.css("padding-right"), 10 ) );
+				viewSize = viewSize - ( parseInt( $view.css( "padding-left" ), 10 ) + parseInt( $view.css( "padding-right" ), 10 ) );
 			}
 			if ( viewSize < templateSize * self._numItemData ) {
-				console.log("[ _calculateColumnCount ] apply scrollbarwidth ... : " + self._scrollBarWidth);
 				viewSize = viewSize - ( self._scrollBarWidth );
 			}
-			itemCount = parseInt( (viewSize / templateSize), 10);
-			console.log( " itemCount : %s (viewSize : %s , scrollBar size : %s  templateSize : %s )", itemCount, viewSize, self._scrollBarWidth, templateSize );
+			itemCount = parseInt( ( viewSize / templateSize ), 10);
 			return itemCount > 0 ? itemCount : 1 ;
 		},
 
@@ -804,13 +806,13 @@ $.extend(MomentumTracker.prototype, {
 
 			if ( self._direction ) {
 				size = parseInt( self._maxSize / self._$clipSize.width, 10 );
-				self._movePos = ( self._$clipSize.width ) / self._totalRowCnt;
+				size = size < 10 ? 10 : size;
+				self._movePos = ( self._$clipSize.width - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.width( size );
 			} else {
 				size = parseInt ( Math.pow( self._$clipSize.height , 2) / self._maxSize , 10 );
 				size = size < 10 ? 10 : size;
-				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView -1 ));
-				console.log ( "size : %s / movePos : %s" , size, self._movePos );
+				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.height( size );
 			}
 		},
@@ -819,6 +821,10 @@ $.extend(MomentumTracker.prototype, {
 			var self = this,
 				pos = 0,
 				$scrollBar = self._$scrollBar;
+
+			if ( self._eventType !== 'touch' ) {
+				return ;
+			}
 
 			if ( self._direction ) {
 				pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
@@ -841,7 +847,7 @@ $.extend(MomentumTracker.prototype, {
 			for ( index = 0; index < count ; index += 1 ) {
 				$row = $( self._makeRow( index ) );
 
-				$row.children().detach().appendTo($row); // <-- layout
+				$row.children().detach().appendTo( $row ); // <-- layout
 
 				if ( self._direction ) {
 					$row.css({
@@ -877,7 +883,6 @@ $.extend(MomentumTracker.prototype, {
 			wrapBlock.setAttribute( "row-index", String( rowIndex ) );
 			wrapBlock.style.position = "absolute";
 			wrapBlock.style.top = ( rowIndex * self._$templateItemSize.height ) + "px";
-			// self._fragment.appendChild( wrapBlock );
 			return wrapBlock;
 		},
 
@@ -979,15 +984,14 @@ $.extend(MomentumTracker.prototype, {
 				$block = block.hasChildNodes ? block : block[0];
 				tempBlocks = null;
 
+			// TODO modify this code.
 			while ( $block.hasChildNodes() ) {
 				$block.removeChild( $block.lastChild );
  			}
-
 			tempBlocks = self._makeRow( index );
 			while ( tempBlocks.children.length ) {
 				$block.appendChild( tempBlocks.children[0] );
  			}
- 			// $block.innerHTML = tempBlocks.innerHTML;
  			$block.style.top = ( index * self._$templateItemSize.height ) + "px"
  			$block.setAttribute("row-index", index );
 			tempBlocks.parentNode.removeChild( tempBlocks );
