@@ -47,7 +47,6 @@ window.log = function ( msg ) {
 
 ( function ($, window, document, undefined) {
 
-
 	function getScrollBarWidth() {
 		var inner = document.createElement('p');
 
@@ -78,21 +77,19 @@ window.log = function ( msg ) {
 	};
 
 	scrollbarWidth = function() {
-  var parent, child, width;
+		var parent, child, width;
 
-  if(width===undefined) {
-    parent = $('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body');
-    child=parent.children();
-    width=child.innerWidth()-child.height(99).innerWidth();
-    parent.remove();
-  }
-
- return width;
-};
+		if(width === undefined) {
+			parent = $('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body');
+			child=parent.children();
+			width=child.innerWidth()-child.height(99).innerWidth();
+			parent.remove();
+		}
+		return width;
+	};
 
 function MomentumTracker(options)
 {
-	// this.easing = "easeOutQuad";
 	this.easing = $.easing['easeOutQuad'] || function (x, t, b, c, d) {
 		return -c *(t/=d)*(t-2) + b;
 	};
@@ -100,10 +97,10 @@ function MomentumTracker(options)
 }
 
 var tstates = {
-	scrolling: 0,
-	overshot:  1,
-	snapback:  2,
-	done:      3
+	scrolling:	0,
+	overshot:	1,
+	snapback:	2,
+	done:		3
 };
 
 function getCurrentTime() { return (new Date()).getTime(); }
@@ -365,9 +362,56 @@ $.extend(MomentumTracker.prototype, {
 			}
 		},
 
+		_resize : function () {
+			var self = this,
+				width = 0,
+				height = 0,
+				rowCount = 0,
+				totalRowCnt = 0,
+				columnCount = 0;
+
+			if ( !self._inheritedSize ) {
+				return ;
+			}
+
+			width = self._calculateClipSize('width');
+			height = self._calculateClipSize('height');
+			columnCount = self._calculateColumnCount();
+
+			console.log( "criteriaRow index : %s / columnCount : %s / calculateCoumnCount %s", self._getCriteriaRow().attr('row-index'), self._itemCount, columnCount  );
+
+			if ( self._itemCount !== columnCount ) {
+				self._itemCount = columnCount;
+				totalRowCnt = parseInt( self._numItemData / columnCount, 10 );
+				self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
+				self._replaceRows();
+			}
+
+			if ( self._direction ) {
+				// rowCount = self._calculateRowCount( self._$clipSize.width, self._$templateItemSize.width );
+				rowCount = self._calculateRowCount( width, self._$templateItemSize.width );
+			} else {
+				// rowCount = self._calculateRowCount( self._$clipSize.height, self._$templateItemSize.height );
+				rowCount = self._calculateRowCount( height, self._$templateItemSize.height );
+			}
+			console.log( "prev row count : %s / new row count : %s ", self._rowsPerView, rowCount )
+
+			if ( rowCount > self._rowsPerView ) {
+				console.log("increase row");
+				self._increaseRow( rowCount - self._rowsPerView );
+			} else if ( rowCount < self._rowsPerView ) {
+				console.log("decrease row");
+				self._decreaseRow( self._rowsPerView - rowCount );
+			}
+			self._rowsPerView = rowCount;
+
+			// post process
+			self._$view.width(width).height(height);
+			self._$clip.width(width).height(height);
+		},
+
 		_initPageProperty : function () {
 			var self = this,
-				rowsPerView = 0,
 				$children,
 				columnCount = 0,
 				totalRowCnt = 0,
@@ -378,7 +422,6 @@ $.extend(MomentumTracker.prototype, {
 			columnCount = self._calculateColumnCount();
 
 			totalRowCnt = parseInt(self._numItemData / columnCount , 10 );
-			log ( " Row Count :  " + totalRowCnt );
 			self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
 			self._itemCount = columnCount;
 
@@ -386,19 +429,18 @@ $.extend(MomentumTracker.prototype, {
 				return ;
 			}
 
-			rowsPerView = clipSize / templateSize;
-			rowsPerView = Math.ceil( rowsPerView );
-			self._rowsPerView = parseInt( rowsPerView, 10);
+			self._rowsPerView = self._calculateRowCount( clipSize, templateSize );
+			console.log("rows per view : " + self._rowsPerView )
 
-			$children = self._makeRows( rowsPerView + 2 );
-			self._$content.append($children);
-			self._$content.children().css(attributeName, templateSize + "px");
+			$children = self._makeRows( self._rowsPerView + 2 );
+			self._$content.append( $children );
+			self._$content.children().css( attributeName, templateSize + "px" );
 
 			self._blockScroll = self._rowsPerView > self._totalRowCnt;
 			self._maxSize = self._totalRowCnt * templateSize;
 
 			self._$content.height(self._maxSize);
-			self._tailItemIdx = rowsPerView + 2 ;
+			self._tailItemIdx = self._rowsPerView + 2 ;
 		},
 
 		_addEventListener : function () {
@@ -452,7 +494,12 @@ $.extend(MomentumTracker.prototype, {
 					return self._handleDragStop( e );
 				};
 			}
-				self._$view.bind( self._dragStartEvt, self._dragStartCB );
+			self._$view.bind( self._dragStartEvt, self._dragStartCB );
+			$( window ).bind( "resize", function ( event ){
+				if ( $( $.mobile.virtualgrid.prototype.options.initSelector, $( event.target ) ) ) {
+					self._resize();
+				}
+			});
 		},
 
 		_getinheritedSize : function ( elem ) {
@@ -494,24 +541,19 @@ $.extend(MomentumTracker.prototype, {
 				keepGoing = false,
 				curScrollPos = self._$view[0].scrollTop,
 				templateItemSize = self._direction ? self._$templateItemSize.width : self._$templateItemSize.height,
-				$header = $(".ui-header .ui-title"),
 				x = 0, y = 0;
 
 			var tracker = this._tracker;
-			if ( tracker )
-			{
+			if ( tracker ) {
 				tracker.update();
 				x = tracker.getPosition();
 				keepGoing = keepGoing || !tracker.done();
 			}
 
 			self._setScrollPosition(self._$view[0].scrollLeft, x );
-			
 			if ( keepGoing ) {
-				$(".ui-footer .ui-title").text( self._prevScrollPos + " : " + curScrollPos );
 				self._timerID = setTimeout( self._timerCB, self._timerInterval );
 			} else {
-				console.log(" stop : current scroll top.... " + self._$view[0].scrollTop);
 				self._stopMScroll();
 			}
 		},
@@ -519,11 +561,7 @@ $.extend(MomentumTracker.prototype, {
 		_handleDragStart : function ( event, x, y ) {
 			var self = this;
 
-			log( window._indents() + "handle Drag start");
-			window._indentCnt++;
-	
 			self._stopMScroll();
-			$(".ui-header .ui-title").text(" start  x : " + x + "/ y : " + y);
 			self._enableTracking();
 			self._curPos.x = 0;
 			self._curPos.y = 0;
@@ -531,7 +569,6 @@ $.extend(MomentumTracker.prototype, {
 			self._prevPos.y = 0;
 			// for my control.
 			self._scrolling = false; // 2번째 무브부터 이동이 이루어져야 함.
-			// log(window._indents() + "current scroll top : "+ self._$view[0].scrollTop  + " - left " + self._$view[0].scrollLeft);
 			self._startTime = (new Date()).getTime();
 			event.stopPropagation();
 		},
@@ -547,7 +584,6 @@ $.extend(MomentumTracker.prototype, {
 			self._curPos.x = x;
 			self._curPos.y = y;
 			self._startTime = (new Date()).getTime();
-
 			if ( self._scrolling ) {
 				distanceY = self._curPos.y - self._prevPos.y;
 				newY = self._$view[0].scrollTop - distanceY;
@@ -555,7 +591,6 @@ $.extend(MomentumTracker.prototype, {
 			} else {
 				self._scrolling = true;
 			}
-
 		},
 
 		_handleDragStop : function ( event ) {
@@ -718,7 +753,6 @@ $.extend(MomentumTracker.prototype, {
 
 			$view = self._$clip;
 			$parent = $view.parents( ".ui-content" );
-			// clipSize = window[ "inner" + ( axis ? "Height" : "Width" ) ];
 
 			if ( axis ) {
 				clipSize = window[ "innerHeight" ];
@@ -762,12 +796,11 @@ $.extend(MomentumTracker.prototype, {
 
 		_calculateColumnCount : function ( ) {
 			var self = this,
-				$view = $(self.element),
+				$view = $( self.element ).parents( ".ui-content" ) || $( self.element ),
 				viewSize = self._direction ? $view.innerHeight() : $view.innerWidth(),
 				templateSize = self._direction ? self._$templateItemSize.height : self._$templateItemSize.width,
 				itemCount = 0 ;
 
-			var pushViewSize = viewSize;
 			if ( self._direction ) {
 				viewSize = viewSize - ( parseInt( $view.css( "padding-top" ), 10 ) + parseInt( $view.css( "padding-bottom" ), 10 ) );
 			} else {
@@ -778,6 +811,14 @@ $.extend(MomentumTracker.prototype, {
 			}
 			itemCount = parseInt( ( viewSize / templateSize ), 10);
 			return itemCount > 0 ? itemCount : 1 ;
+		},
+
+		_calculateRowCount : function( viewSize, itemSize ) {
+			var ret = 0;
+
+			ret = viewSize / itemSize;
+			ret = Math.ceil( ret );
+			return parseInt( ret, 10);
 		},
 
 		//----------------------------------------------------//
@@ -825,7 +866,6 @@ $.extend(MomentumTracker.prototype, {
 			if ( self._eventType !== 'touch' ) {
 				return ;
 			}
-
 			if ( self._direction ) {
 				pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
 				$scrollBar.css ( "top" , pos  + "px");
@@ -848,7 +888,6 @@ $.extend(MomentumTracker.prototype, {
 				$row = $( self._makeRow( index ) );
 
 				$row.children().detach().appendTo( $row ); // <-- layout
-
 				if ( self._direction ) {
 					$row.css({
 						"top" : 0,
@@ -871,7 +910,7 @@ $.extend(MomentumTracker.prototype, {
 				attrName = self._direction ? "top" : "left",
 				blockClassName = self._direction ? "ui-virtualgrid-wrapblock-x " : "ui-virtualgrid-wrapblock-y ",
 				attrName = self._direction ? "top" : "left",
-				wrapBlock = self._createElement ( "div" ),
+				wrapBlock = self._createElement( "div" ),
 				strWrapInner = "";
 
 			for ( colIndex = 0; colIndex < self._itemCount && index < self._numItemData ; colIndex++ ) {
@@ -942,41 +981,42 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			return result;
- 		},
+		},
 
-		_replaceRows : function ( curCnt, prevCnt, maxCnt, clipPosition ) {
+		_getCriteriaRow : function () {
 			var self = this,
-				$rows = self._$view.children(),
-				prevRowIndex = 0,
+				$row,
+				count = 0,
+				index = self._headItemIdx,
+				filterCondition = 0;
+
+			filterCondition = self._$view[0].scrollTop - ( self._$templateItemSize['height'] * 0.7 )
+			do {
+				$row = $( "[row-index='" + index + "']", self._$content );
+				if ( $row && $row.position()['top'] >= filterCondition ) {
+					break;
+				}
+				index++;
+			} while ( $row )
+			return $row;
+		},
+
+		_replaceRows : function () {
+			var self = this,
+				$rows = self._$content.children(),
+				$row,
 				rowIndex = 0,
-				diffRowCnt = 0,
-				targetCnt = 1,
-				filterCondition = ( self._filterRatio * self._cellSize) + self._cellSize,
 				idx = 0;
 
-			if ( filterCondition < clipPosition ) {
-				targetCnt += 1;
-			}
-
-			prevRowIndex = parseInt( $($rows[targetCnt]).attr("row-index"), 10);
-			if ( prevRowIndex === 0 ) {
-				// only top.
-				rowIndex = maxCnt - targetCnt;
-			} else {
-				rowIndex = Math.round( (prevRowIndex * prevCnt) / curCnt );
-				if ( rowIndex + self._rowsPerView >= maxCnt ) {
-					// only bottom.
-					rowIndex = maxCnt - self._rowsPerView;
+			for ( ; idx < $rows.length ; idx++ ) {
+				$row = $rows.eq( idx );
+				rowIndex = parseInt( $row.attr("row-index"), 10 );
+				if ( rowIndex > self._totalRowCnt ) {
+					rowIndex = --self._headItemIdx;
+					self._tailItemIdx--;
 				}
-				diffRowCnt = prevRowIndex - rowIndex;
-				rowIndex -= targetCnt;
+				self._replaceRow( $row, rowIndex );
 			}
-
-			for ( idx = 0 ; idx < $rows.length ; idx += 1 ) {
-				self._replaceRow($rows[idx], circularNum( rowIndex, self._totalRowCnt ));
-				rowIndex++;
-			}
-			return -diffRowCnt;
 		},
 
 		_replaceRow : function ( block, index ) {
@@ -995,6 +1035,39 @@ $.extend(MomentumTracker.prototype, {
  			$block.style.top = ( index * self._$templateItemSize.height ) + "px"
  			$block.setAttribute("row-index", index );
 			tempBlocks.parentNode.removeChild( tempBlocks );
+		},
+
+		_increaseRow : function ( num ) {
+			var self = this,
+				$row = null,
+				$children = null,
+				idx = 0,
+				childCount = 0;
+
+			for ( ; idx <= num ; idx++ ) {
+				if ( self._tailItemIdx + idx >= self._totalRowCnt ) {
+					$row = $( self._makeRow( self._headItemIdx ) );
+					self._headItemIdx -= 1;
+				} else {
+					$row = $( self._makeRow( self._tailItemIdx + idx ) );
+					$children = $row.children().detach();
+					for ( childCount = 0; childCount < $children.length ; childCount++ ){
+						$row.append( $children[childCount]);
+					}
+				}
+				self._$content.append( $row );
+			}
+			self._tailItemIdx += num;
+		},
+
+		_decreaseRow : function ( num ) {
+			var self = this,
+				idx = 0;
+
+			for ( ; idx < num ; idx++ ) {
+				$( "[row-index = "+( self._tailItemIdx - idx )+"]", self._$content ).remove();
+			}
+			self._tailItemIdx -= num;
 		},
 
 		_createElement : function ( tag ) {
@@ -1038,7 +1111,6 @@ $.extend(MomentumTracker.prototype, {
 			if ( !data ) {
 				return ;
 			}
-
 			plainMsg = self._template.text();
 			for ( idx = 0 ; idx < self._properties.length ; idx++ ) {
 				plainMsg = self._strReplace( plainMsg, "${" + self._properties[ idx ] + "}" , data[ self._properties[ idx ] ] );
@@ -1065,7 +1137,6 @@ $.extend(MomentumTracker.prototype, {
 				document.selection.empty()
 			}
 		}
-
 	} );
 
 	$( document ).bind( "pagecreate create", function ( e ) {
