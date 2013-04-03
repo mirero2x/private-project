@@ -277,8 +277,15 @@ $.extend(MomentumTracker.prototype, {
 
 			// make a fragment.
 			self._eventType = $.support.touch ? "touch" : "mouse";
-			self._scrollBarWidth = getScrollBarWidth() ;
+			// self._scrollBarWidth = getScrollBarWidth() ;
+			self._scrollBarWidth = scrollbarWidth() ;
 			self._fragment = document.createDocumentFragment();
+			self._createElement = function ( tag ) {
+				var element = document.createElement( tag );
+				self._fragment.appendChild( element );
+				return element;
+			};
+
 			self._$document = $( document );
 
 			// self._timerCB = self._handleMomentumScroll;
@@ -362,6 +369,31 @@ $.extend(MomentumTracker.prototype, {
 			}
 		},
 
+		scrollTo: function ( x, y, duration ) {
+			var self = this,
+				start = getCurrentTime(),
+				duration = duration || 0,
+				sx = self._$view[0].scrollLeft,
+				sy = self._$view[0].scrollTop,
+				dx = x - sx,
+				dy = y - sy,
+				tfunc;
+
+			tfunc = function () {
+				var elapsed = getCurrentTime() - start,
+					ec;
+				if ( elapsed >= duration ) {
+					self._timerID = 0;
+					self._setScrollPosition( x, y );
+				} else {
+					ec = $.easing.easeOutQuad( elapsed / duration, elapsed, 0, 1, duration );
+					self._setScrollPosition( sx + ( dx * ec ), sy + ( dy * ec ) );
+					self._timerID = setTimeout( tfunc, self._timerInterval );
+				}
+			};
+			this._timerID = setTimeout( tfunc, this._timerInterval );
+		},
+
 		_resize : function () {
 			var self = this,
 				width = 0,
@@ -378,8 +410,6 @@ $.extend(MomentumTracker.prototype, {
 			height = self._calculateClipSize('height');
 			columnCount = self._calculateColumnCount();
 
-			console.log( "criteriaRow index : %s / columnCount : %s / calculateCoumnCount %s", self._getCriteriaRow().attr('row-index'), self._itemCount, columnCount  );
-
 			if ( self._itemCount !== columnCount ) {
 				self._itemCount = columnCount;
 				totalRowCnt = parseInt( self._numItemData / columnCount, 10 );
@@ -388,19 +418,14 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			if ( self._direction ) {
-				// rowCount = self._calculateRowCount( self._$clipSize.width, self._$templateItemSize.width );
 				rowCount = self._calculateRowCount( width, self._$templateItemSize.width );
 			} else {
-				// rowCount = self._calculateRowCount( self._$clipSize.height, self._$templateItemSize.height );
 				rowCount = self._calculateRowCount( height, self._$templateItemSize.height );
 			}
-			console.log( "prev row count : %s / new row count : %s ", self._rowsPerView, rowCount )
 
 			if ( rowCount > self._rowsPerView ) {
-				console.log("increase row");
 				self._increaseRow( rowCount - self._rowsPerView );
 			} else if ( rowCount < self._rowsPerView ) {
-				console.log("decrease row");
 				self._decreaseRow( self._rowsPerView - rowCount );
 			}
 			self._rowsPerView = rowCount;
@@ -676,8 +701,6 @@ $.extend(MomentumTracker.prototype, {
 				idx = 0,
 				$row = null;
 
-			window._indentCnt++;
-
 			if ( self._direction ) {
 				curPos = x;
 				templateItemSize = self._$templateItemSize.width;
@@ -690,8 +713,6 @@ $.extend(MomentumTracker.prototype, {
 			diffPos = curPos - prevPos;
 			di = parseInt( diffPos / templateItemSize, 10 );
 
-			// console.log( "[before] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
-			// $(".ui-footer .ui-title").text("pos : " + self._storedScrollPos + " - "+ curPos );
 			if ( di > 0 && self._tailItemIdx < self._totalRowCnt ) { // scroll down
 				if ( self._tailItemIdx + 1 === self._totalRowCnt ) {
 						console.log ("break;");
@@ -731,9 +752,6 @@ $.extend(MomentumTracker.prototype, {
 				self._$view[ 0 ].scrollTop = y;
 			}
 			self._setScrollBarPos( x, y );
-
-			window._indentCnt--;
-			// console.log( " +-- [after] storedPos :%s, curPos :%s ,di : %s diffPos : %s, tailItemIdx : %s, headItemIdx : %s ", self._storedScrollPos, curPos ,di, diffPos, self._tailItemIdx, self._headItemIdx );
 		},
 
 		//----------------------------------------------------//
@@ -847,12 +865,12 @@ $.extend(MomentumTracker.prototype, {
 
 			if ( self._direction ) {
 				size = parseInt( self._maxSize / self._$clipSize.width, 10 );
-				size = size < 10 ? 10 : size;
+				size = size < 15 ? 15 : size;
 				self._movePos = ( self._$clipSize.width - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.width( size );
 			} else {
 				size = parseInt ( Math.pow( self._$clipSize.height , 2) / self._maxSize , 10 );
-				size = size < 10 ? 10 : size;
+				size = size < 15 ? 15 : size;
 				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.height( size );
 			}
@@ -907,11 +925,15 @@ $.extend(MomentumTracker.prototype, {
 				htmlData = null,
 				itemData = null,
 				colIndex = 0,
-				attrName = self._direction ? "top" : "left",
-				blockClassName = self._direction ? "ui-virtualgrid-wrapblock-x " : "ui-virtualgrid-wrapblock-y ",
-				attrName = self._direction ? "top" : "left",
+				attrName = "left",
+				blockClassName = "ui-virtualgrid-wrapblock-y ",
 				wrapBlock = self._createElement( "div" ),
 				strWrapInner = "";
+
+			if ( self._direction ) {
+				attrName = "top";
+				blockClassName = "ui-virtualgrid-wrapblock-x ";
+			}
 
 			for ( colIndex = 0; colIndex < self._itemCount && index < self._numItemData ; colIndex++ ) {
 				strWrapInner += self._makeHtmlData( index, index, attrName ) 
@@ -1070,11 +1092,11 @@ $.extend(MomentumTracker.prototype, {
 			self._tailItemIdx -= num;
 		},
 
-		_createElement : function ( tag ) {
-			var element = document.createElement( tag );
-			this._fragment.appendChild( element );
-			return element;
-		},
+		// _createElement : function ( tag ) {
+			// var element = document.createElement( tag );
+			// this._fragment.appendChild( element );
+			// return element;
+		// },
 
 		_getObjectNames : function ( obj ) {
 			var properties = [],
@@ -1129,11 +1151,9 @@ $.extend(MomentumTracker.prototype, {
 		},
 
 		_clearSelectedDom : function ( ) {
-			if ( window.getSelection ) {
-				// Mozilla
+			if ( window.getSelection ) { // Mozilla
 				window.getSelection().removeAllRanges();
-			} else {
-				// IE
+			} else { // IE
 				document.selection.empty()
 			}
 		}
