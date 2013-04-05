@@ -62,6 +62,10 @@
 							},
 							numItemData: JSON_DATA.length,
 							cacheItemData: function ( minIdx, maxIdx ) {
+							},
+							// for test
+							setProperty: function ( idx, name, value ) {
+								JSON_DATA[ idx ][name] = value;
 							}
 						});
 						$( ".virtualgrid_grid_demo_page" ).unbind("pagecreate");

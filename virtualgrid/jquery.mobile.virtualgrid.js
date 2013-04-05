@@ -150,7 +150,6 @@ $.extend(MomentumTracker.prototype, {
 			var didOverShoot = (state == tstates.scrolling) && (x < this.minPos || x > this.maxPos);
 			if (didOverShoot) {
 				x = (x < this.minPos) ? this.minPos : this.maxPos;
-				console.log("didOverShot : " + state + " - " + x + " px.");
 			}
 		
 			this.pos = x;
@@ -277,8 +276,7 @@ $.extend(MomentumTracker.prototype, {
 
 			// make a fragment.
 			self._eventType = $.support.touch ? "touch" : "mouse";
-			// self._scrollBarWidth = getScrollBarWidth() ;
-			self._scrollBarWidth = scrollbarWidth() ;
+			self._scrollBarWidth = scrollbarWidth();
 			self._fragment = document.createDocumentFragment();
 			self._createElement = function ( tag ) {
 				var element = document.createElement( tag );
@@ -340,6 +338,12 @@ $.extend(MomentumTracker.prototype, {
 				return false;
 			}
 			self._getObjectNames( self._itemData(0) );
+			var idx = 0;
+			if ( args.setProperty ) {
+				for ( ; idx < self._numItemData ; idx ++  ) {
+					args.setProperty ( idx, "NAME", idx );
+				}
+			}
 			return true;
 		},
 
@@ -354,19 +358,37 @@ $.extend(MomentumTracker.prototype, {
 				return ;
 			}
 
-			width = self._calculateClipSize('width');
-			height = self._calculateClipSize('height');
-			self._$view.width(width).height(height);
-			self._$clip.width(width).height(height);
+			width = self._calculateClipSize( 'width' );
+			height = self._calculateClipSize( 'height' );
+			self._$view.width( width ).height( height );
+			self._$clip.width( width ).height( height );
 
 			self._$clipSize.width = width;
 			self._$clipSize.height = height;
 			self._calculateTemplateItemSize();
 			self._initPageProperty();
-			if ( self._eventType === 'touch' ) {
+			self._setScrollBarPos = $.noop; 
+			// if ( self._eventType === 'touch' ) {
 				self._createScrollBar();
 				self._setScrollBarSize();
-			}
+				self._setScrollBarPos = function ( x, y ) {
+					var self = this,
+						pos = 0,
+						$scrollBar = self._$scrollBar;
+		
+					// if ( self._eventType !== 'touch' ) {
+						// return ;
+					// }
+					if ( self._direction ) {
+						pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
+						$scrollBar.css ( "left" , pos  + "px");
+					} else {
+						pos = y + ( self._movePos * parseInt( y / self._$templateItemSize.height, 10 ) );
+						// console.log(" pos : %s, scrollTop : %s", pos, self._$view[0].scrollTop);
+						$scrollBar.css ( "top" , pos  + "px");
+					}
+				};
+			// }
 		},
 
 		scrollTo: function ( x, y, duration ) {
@@ -384,9 +406,11 @@ $.extend(MomentumTracker.prototype, {
 					ec;
 				if ( elapsed >= duration ) {
 					self._timerID = 0;
+					console.log( "-> [tfunc 1] x : %s // y : %s", x, y );
 					self._setScrollPosition( x, y );
 				} else {
 					ec = $.easing.easeOutQuad( elapsed / duration, elapsed, 0, 1, duration );
+					console.log( "-> [tfunc 2] x : %s // y : %s",sx + ( dx * ec ), sy + ( dy * ec ) );
 					self._setScrollPosition( sx + ( dx * ec ), sy + ( dy * ec ) );
 					self._timerID = setTimeout( tfunc, self._timerInterval );
 				}
@@ -400,20 +424,22 @@ $.extend(MomentumTracker.prototype, {
 				height = 0,
 				rowCount = 0,
 				totalRowCnt = 0,
-				columnCount = 0;
+				columnCount = 0,
+				cssPropertyName = self._direction ? 'width' : 'height';
 
 			if ( !self._inheritedSize ) {
 				return ;
 			}
 
-			width = self._calculateClipSize('width');
-			height = self._calculateClipSize('height');
+			width = self._calculateClipSize( 'width' );
+			height = self._calculateClipSize( 'height' );
 			columnCount = self._calculateColumnCount();
 
 			if ( self._itemCount !== columnCount ) {
 				self._itemCount = columnCount;
 				totalRowCnt = parseInt( self._numItemData / columnCount, 10 );
 				self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
+				self._$content[ cssPropertyName ]( self._totalRowCnt * self._$templateItemSize[ cssPropertyName ] );
 				self._replaceRows();
 			}
 
@@ -431,8 +457,10 @@ $.extend(MomentumTracker.prototype, {
 			self._rowsPerView = rowCount;
 
 			// post process
-			self._$view.width(width).height(height);
-			self._$clip.width(width).height(height);
+			self._$view.width( width ).height( height );
+			self._$clip.width( width ).height( height );
+			self._setScrollBarSize();
+			self._setScrollBarPos( self._$view[0].scrollLeft, self._$view[0].scrollTop )
 		},
 
 		_initPageProperty : function () {
@@ -440,9 +468,15 @@ $.extend(MomentumTracker.prototype, {
 				$children,
 				columnCount = 0,
 				totalRowCnt = 0,
-				attributeName = self._direction ? "width" : "height",
-				clipSize =  self._direction ? self._$clipSize.width : self._$clipSize.height,
-				templateSize = self.direction ? self._$templateItemSize.width : self._$templateItemSize.height ;
+				attributeName = "height",
+				clipSize = self._$clipSize.height,
+				templateSize = self._$templateItemSize.height;
+
+			if ( self._direction ) {
+				attributeName = "width";
+				clipSize = self._$clipSize.width;
+				templateSize = self._$templateItemSize.width;
+			}
 
 			columnCount = self._calculateColumnCount();
 
@@ -455,17 +489,13 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			self._rowsPerView = self._calculateRowCount( clipSize, templateSize );
-			console.log("rows per view : " + self._rowsPerView )
 
 			$children = self._makeRows( self._rowsPerView + 2 );
 			self._$content.append( $children );
 			self._$content.children().css( attributeName, templateSize + "px" );
 
-			self._blockScroll = self._rowsPerView > self._totalRowCnt;
-			self._maxSize = self._totalRowCnt * templateSize;
-
-			self._$content.height(self._maxSize);
-			self._tailItemIdx = self._rowsPerView + 2 ;
+			self._$content[ attributeName ]( self._totalRowCnt * templateSize );
+			self._tailItemIdx = self._rowsPerView + 1;
 		},
 
 		_addEventListener : function () {
@@ -475,9 +505,9 @@ $.extend(MomentumTracker.prototype, {
 				$footer = $(".ui-footer .ui-title");
 
 			if ( self._eventType === 'mouse' ) { // mouse event.
-				self._$view.bind( "scroll", function ( event ) {
-					self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
-				});
+				// self._$view.bind( "scroll", function ( event ) {
+					// self._setScrollPosition(self._$view[0].scrollLeft, self._$view[0].scrollTop );
+				// });
 
 				self._$content.delegate( "img", "dragstart", function ( event ) {
 					event.preventDefault();
@@ -501,10 +531,8 @@ $.extend(MomentumTracker.prototype, {
 				self._dragStartEvt = "touchstart";
 				self._dragStartCB = function ( e ) {
 					var t = e.originalEvent.targetTouches[0];
-					log(">> preventDefault ");
 					e.preventDefault();
 					e.stopPropagation();
-					
 					return self._handleDragStart(e, t.pageX, t.pageY );
 				};
 
@@ -574,7 +602,7 @@ $.extend(MomentumTracker.prototype, {
 				x = tracker.getPosition();
 				keepGoing = keepGoing || !tracker.done();
 			}
-
+			console.log( "-> [_handleMomentumScroll] x : %s // y : %s", self._$view[0].scrollLeft, x );
 			self._setScrollPosition(self._$view[0].scrollLeft, x );
 			if ( keepGoing ) {
 				self._timerID = setTimeout( self._timerCB, self._timerInterval );
@@ -593,7 +621,7 @@ $.extend(MomentumTracker.prototype, {
 			self._prevPos.x = 0;
 			self._prevPos.y = 0;
 			// for my control.
-			self._scrolling = false; // 2번째 무브부터 이동이 이루어져야 함.
+			self._scrolling = false;
 			self._startTime = (new Date()).getTime();
 			event.stopPropagation();
 		},
@@ -608,10 +636,12 @@ $.extend(MomentumTracker.prototype, {
 			self._prevPos.y = self._curPos.y;
 			self._curPos.x = x;
 			self._curPos.y = y;
-			self._startTime = (new Date()).getTime();
+			// self._startTime = ( new Date() ).getTime();
+			self._startTime = getCurrentTime();
 			if ( self._scrolling ) {
 				distanceY = self._curPos.y - self._prevPos.y;
 				newY = self._$view[0].scrollTop - distanceY;
+				console.log( "-> [handleDragMove] x : %s // y : %s", self._$view[0].scrollLeft, newY );
 				self._setScrollPosition(self._$view[0].scrollLeft, newY );
 			} else {
 				self._scrolling = true;
@@ -624,8 +654,6 @@ $.extend(MomentumTracker.prototype, {
 				distanceX = self._curPos.x - self._prevPos.x;
 
 			self._startMScroll(-distanceX, -distanceY);
-			window._indentCnt--;
-			log(window._indents() +"Event : scroll stop....");
 		},
 
 		_stopMScroll: function () {
@@ -635,7 +663,6 @@ $.extend(MomentumTracker.prototype, {
 			this._timerID = 0;
 			this._tracker.reset();
 			this._disableTracking();
-			window._indentCnt --;
 		},
 
 		_startMScroll: function ( speedX, speedY ) {
@@ -649,8 +676,6 @@ $.extend(MomentumTracker.prototype, {
 
 			self._stopMScroll();
 
-			log( window._indents() + "start pos : " + this._$view[0].scrollTop +" startMScroll - speedX : " + speedX + " - speedY : " + speedY );
-			window._indentCnt ++;
 			if ( tracker ) {
 				c = this._$clip.height();
 				v = this._$content.height();
@@ -701,6 +726,8 @@ $.extend(MomentumTracker.prototype, {
 				idx = 0,
 				$row = null;
 
+			console.log( "\t-> [1. _setScrollPosition] x : %s // y : %s", x, y );
+
 			if ( self._direction ) {
 				curPos = x;
 				templateItemSize = self._$templateItemSize.width;
@@ -719,6 +746,9 @@ $.extend(MomentumTracker.prototype, {
 				}
 				for ( i = 0; i < di; i++ ) {
 					$row = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
+					if ( !$row ) {
+						console.log ( "\t[scrollDown]cannot find a head item : %s " + self._headItemIdx );
+					}
 					self._replaceRow( $row, self._tailItemIdx );
 					self._tailItemIdx++;
 					self._headItemIdx++;
@@ -730,6 +760,9 @@ $.extend(MomentumTracker.prototype, {
 					self._tailItemIdx--;
 					self._headItemIdx--;
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
+					if ( !$row ) {
+						console.log ( "\t[scrollUp] cannot find a tail item : %s " + self._tailItemIdx );
+					}
 					self._replaceRow( $row, self._headItemIdx );
 					self._clearSelectedDom();
 				}
@@ -738,6 +771,10 @@ $.extend(MomentumTracker.prototype, {
 
 			if ( diffPos < 0 ) {
 				$row =  $( "[row-index='" + self._headItemIdx + "']", self._$content );
+				if ( !$row ) {
+					console.log(" rowIndex :: " +  self._headItemIdx );
+					$(".ui-header .ui-title").text("row : " + self._headItemIdx );
+				}
 				if ( $row.position()[attrName] > curPos ) {
 					self._tailItemIdx--;
 					self._headItemIdx--;
@@ -751,7 +788,7 @@ $.extend(MomentumTracker.prototype, {
 			} else {
 				self._$view[ 0 ].scrollTop = y;
 			}
-			self._setScrollBarPos( x, y );
+			self._setScrollBarPos( parseInt( x, 10 ), parseInt( y, 10 ) );
 		},
 
 		//----------------------------------------------------//
@@ -864,34 +901,37 @@ $.extend(MomentumTracker.prototype, {
 				$scrollBar = self._$scrollBar;
 
 			if ( self._direction ) {
-				size = parseInt( self._maxSize / self._$clipSize.width, 10 );
+				// size = parseInt( self._maxSize / self._$clipSize.width, 10 );
+				size = parseInt( self._$content.width() / self._$clipSize.width, 10 );
 				size = size < 15 ? 15 : size;
 				self._movePos = ( self._$clipSize.width - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.width( size );
 			} else {
-				size = parseInt ( Math.pow( self._$clipSize.height , 2) / self._maxSize , 10 );
+				// size = parseInt ( Math.pow( self._$clipSize.height , 2) / self._maxSize , 10 );
+				size = parseInt ( self._$clipSize.height / self._$content.height() * 100 , 10 );
+				// console.log ( "calculated size : %s / %s = %s ( %s - %s )", self._$clipSize.height, self._$content.height(), size, self._$templateItemSize.height,self._totalRowCnt );
 				size = size < 15 ? 15 : size;
 				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.height( size );
 			}
 		},
 
-		_setScrollBarPos : function ( x, y ) {
-			var self = this,
-				pos = 0,
-				$scrollBar = self._$scrollBar;
-
-			if ( self._eventType !== 'touch' ) {
-				return ;
-			}
-			if ( self._direction ) {
-				pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
-				$scrollBar.css ( "top" , pos  + "px");
-			} else {
-				pos = y + ( self._movePos * parseInt( y / self._$templateItemSize.height, 10 ) );
-				$scrollBar.css ( "top" , pos  + "px");
-			}
-		},
+		// _setScrollBarPos : function ( x, y ) {
+			// var self = this,
+				// pos = 0,
+				// $scrollBar = self._$scrollBar;
+// 
+			// if ( self._eventType !== 'touch' ) {
+				// return ;
+			// }
+			// if ( self._direction ) {
+				// pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
+				// $scrollBar.css ( "top" , pos  + "px");
+			// } else {
+				// pos = y + ( self._movePos * parseInt( y / self._$templateItemSize.height, 10 ) );
+				// $scrollBar.css ( "top" , pos  + "px");
+			// }
+		// },
 
 		//----------------------------------------------------//
 		//		DOM Element handle		//
@@ -1008,11 +1048,10 @@ $.extend(MomentumTracker.prototype, {
 		_getCriteriaRow : function () {
 			var self = this,
 				$row,
-				count = 0,
 				index = self._headItemIdx,
 				filterCondition = 0;
 
-			filterCondition = self._$view[0].scrollTop - ( self._$templateItemSize['height'] * 0.7 )
+			filterCondition = self._$view[0].scrollTop - ( self._$templateItemSize['height'] * 0.9 )
 			do {
 				$row = $( "[row-index='" + index + "']", self._$content );
 				if ( $row && $row.position()['top'] >= filterCondition ) {
@@ -1020,25 +1059,43 @@ $.extend(MomentumTracker.prototype, {
 				}
 				index++;
 			} while ( $row )
-			return $row;
+			return { target : $row, index : index };
 		},
 
 		_replaceRows : function () {
 			var self = this,
-				$rows = self._$content.children(),
+				$rows = self._$content.children( "[row-index]" ),
 				$row,
 				rowIndex = 0,
-				idx = 0;
+				idx = 0,
+				diff = 0;
+
+			var ret = self._getCriteriaRow(),
+				dataIndex = ret.index * ret.target.children().length;
+
+			dataIndex = dataIndex % self._itemCount === 0 ? dataIndex / self._itemCount : Math.floor( dataIndex / self._itemCount );
+			diff = ret.index - dataIndex;
+			console.log("[ %s -> %s ] target index : %s , data index : %s, diff : %s ", ret.target.children().length, self._itemCount, ret.index, dataIndex, diff );
 
 			for ( ; idx < $rows.length ; idx++ ) {
-				$row = $rows.eq( idx );
-				rowIndex = parseInt( $row.attr("row-index"), 10 );
-				if ( rowIndex > self._totalRowCnt ) {
-					rowIndex = --self._headItemIdx;
-					self._tailItemIdx--;
-				}
-				self._replaceRow( $row, rowIndex );
+				$row = $( $rows[ idx ] );
+				rowIndex = parseInt( $row.attr( "row-index" ), 10 );
+				// if ( rowIndex > self._totalRowCnt ) {
+					// rowIndex = --self._headItemIdx;
+					// self._tailItemIdx--;
+				// }
+				self._replaceRow( $row, rowIndex - diff );
+				console.log ( "\treplace dom element %s -> %s", rowIndex, rowIndex - diff );
 			}
+			if ( self._direction ) {
+				
+			} else {
+				console.log ( "scroll Pos : %s -> %s ( %s )", self._$view[0].scrollTop,  self._$view[0].scrollTop - ( ( diff ) * self._$templateItemSize.height ), diff );
+				self._$view[0].scrollTop = self._$view[0].scrollTop - ( ( diff ) * self._$templateItemSize.height );
+			}
+			console.log ("headItemIdx : %s -> %s // tailItemIdx : %s -> %s", self._headItemIdx , self._headItemIdx - diff, self._tailItemIdx , self._tailItemIdx - diff );
+			self._headItemIdx = self._headItemIdx - diff;
+			self._tailItemIdx = self._tailItemIdx - diff;
 		},
 
 		_replaceRow : function ( block, index ) {
@@ -1046,7 +1103,6 @@ $.extend(MomentumTracker.prototype, {
 				$block = block.hasChildNodes ? block : block[0];
 				tempBlocks = null;
 
-			// TODO modify this code.
 			while ( $block.hasChildNodes() ) {
 				$block.removeChild( $block.lastChild );
  			}
@@ -1091,12 +1147,6 @@ $.extend(MomentumTracker.prototype, {
 			}
 			self._tailItemIdx -= num;
 		},
-
-		// _createElement : function ( tag ) {
-			// var element = document.createElement( tag );
-			// this._fragment.appendChild( element );
-			// return element;
-		// },
 
 		_getObjectNames : function ( obj ) {
 			var properties = [],

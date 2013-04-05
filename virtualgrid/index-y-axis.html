@@ -14,17 +14,12 @@
 				-webkit-overflow-scrolling: touch;
 			}
 		</style>
-		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.2.0/jquery.mobile-1.2.0.min.css" />
-		<link rel="stylesheet" href="libs/namecard.css" />
+		<link rel="stylesheet" href="./jquery.mobile-1.2.0.css" />
+		<link rel="stylesheet" href="./namecard.css" />
 
-		<script src="libs/overthrow.js"></script>
-		<script src="libs/jquery-1.8.2.js"></script>
-		<script src="http://code.jquery.com/mobile/1.2.0/jquery.mobile-1.2.0.js"></script>
-		<!-- 
-		<script src="../libs/jquery.mobile.scrollview.js"></script>
-		<script src="../libs/scrollview.js"></script>
-		-->
-		<script src="libs/jquery.mobile.virtualgrid.js"></script>
+		<script src="../libs/jquery-1.8.2.js"></script>
+		<script src="./jquery.mobile-1.2.0.js"></script>
+		<script src="./jquery.mobile.virtualgrid.js"></script>
 		<title>Virtualgrid - Overthrow</title>
 	</head> <!-- HEAD -->
 	<body>
@@ -52,7 +47,7 @@
 			</div>
 			<script>
 				$( ".virtualgrid_grid_demo_page" ).one( "pagecreate", function() {
-					$.getScript( "libs/virtualgrid-db-demo.js", function( data, textStatus, jqXHR ) {
+					$.getScript( "./virtualgrid-db-demo.js", function( data, textStatus, jqXHR ) {
 						$( ".virtualgrid_demo_page" ).die();
 		
 						$( ":jqmData(role='virtualgrid')" ).virtualgrid( "create", {
