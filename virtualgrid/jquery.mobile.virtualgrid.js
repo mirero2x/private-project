@@ -749,9 +749,9 @@ $.extend(MomentumTracker.prototype, {
 					if ( !$row ) {
 						console.log ( "\t[scrollDown]cannot find a head item : %s " + self._headItemIdx );
 					}
-					self._replaceRow( $row, self._tailItemIdx );
 					self._tailItemIdx++;
 					self._headItemIdx++;
+					self._replaceRow( $row, self._tailItemIdx );
 					self._clearSelectedDom();
 				}
 				self._storedScrollPos += di * templateItemSize;
