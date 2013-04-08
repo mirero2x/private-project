@@ -450,8 +450,10 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			if ( rowCount > self._rowsPerView ) {
+				console.log(">>>>>>> increase row..........")
 				self._increaseRow( rowCount - self._rowsPerView );
 			} else if ( rowCount < self._rowsPerView ) {
+				console.log(">>>>>>> decrease row..........")
 				self._decreaseRow( self._rowsPerView - rowCount );
 			}
 			self._rowsPerView = rowCount;
@@ -746,8 +748,9 @@ $.extend(MomentumTracker.prototype, {
 				}
 				for ( i = 0; i < di; i++ ) {
 					$row = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
-					if ( !$row ) {
-						console.log ( "\t[scrollDown]cannot find a head item : %s " + self._headItemIdx );
+					if ( $row.length == 0 ) {
+						var last = $( "[row-index='"+self._tailItemIdx+"']" ,self._$content );
+						console.log ( "\t[scrollDown]cannot find a head item : %s / %s (last : %s)" , self._headItemIdx, self._tailItemIdx, last.length );
 					}
 					self._tailItemIdx++;
 					self._headItemIdx++;
@@ -757,13 +760,14 @@ $.extend(MomentumTracker.prototype, {
 				self._storedScrollPos += di * templateItemSize;
 			} else if ( di < 0 ) { // scroll up
 				for ( i = 0; i > di && self._headItemIdx > 0; i-- ) {
-					self._tailItemIdx--;
-					self._headItemIdx--;
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
-					if ( !$row ) {
-						console.log ( "\t[scrollUp] cannot find a tail item : %s " + self._tailItemIdx );
+					if ( $row.length === 0 ) {
+						var first = $( "[row-index='"+self._headItemIdx+"']" ,self._$content );
+						console.log ( "\t[scrollUp]cannot find a head item : %s / %s (last : %s)" , self._tailItemIdx, self._headItemIdx, first.length );
 					}
+					self._headItemIdx--;
 					self._replaceRow( $row, self._headItemIdx );
+					self._tailItemIdx--;
 					self._clearSelectedDom();
 				}
 				self._storedScrollPos += di * templateItemSize;
@@ -771,15 +775,15 @@ $.extend(MomentumTracker.prototype, {
 
 			if ( diffPos < 0 ) {
 				$row =  $( "[row-index='" + self._headItemIdx + "']", self._$content );
-				if ( !$row ) {
-					console.log(" rowIndex :: " +  self._headItemIdx );
+				if ( !$row.length ) {
 					$(".ui-header .ui-title").text("row : " + self._headItemIdx );
 				}
+
 				if ( $row.position()[attrName] > curPos ) {
-					self._tailItemIdx--;
-					self._headItemIdx--;
 					$row = $( "[row-index='" + self._tailItemIdx + "']" ,self._$content );
+					self._headItemIdx--;
 					self._replaceRow( $row, self._headItemIdx );
+					self._tailItemIdx--;
 				}
 			}
 
@@ -1080,18 +1084,14 @@ $.extend(MomentumTracker.prototype, {
 			for ( ; idx < $rows.length ; idx++ ) {
 				$row = $( $rows[ idx ] );
 				rowIndex = parseInt( $row.attr( "row-index" ), 10 );
-				// if ( rowIndex > self._totalRowCnt ) {
-					// rowIndex = --self._headItemIdx;
-					// self._tailItemIdx--;
-				// }
 				self._replaceRow( $row, rowIndex - diff );
-				console.log ( "\treplace dom element %s -> %s", rowIndex, rowIndex - diff );
 			}
 			if ( self._direction ) {
 				
 			} else {
 				console.log ( "scroll Pos : %s -> %s ( %s )", self._$view[0].scrollTop,  self._$view[0].scrollTop - ( ( diff ) * self._$templateItemSize.height ), diff );
 				self._$view[0].scrollTop = self._$view[0].scrollTop - ( ( diff ) * self._$templateItemSize.height );
+				self._storedScrollPos = self._$view[0].scrollTop;
 			}
 			console.log ("headItemIdx : %s -> %s // tailItemIdx : %s -> %s", self._headItemIdx , self._headItemIdx - diff, self._tailItemIdx , self._tailItemIdx - diff );
 			self._headItemIdx = self._headItemIdx - diff;
