@@ -45,6 +45,8 @@ window.log = function ( msg ) {
 	}
 };
 
+
+
 ( function ($, window, document, undefined) {
 
 	function getScrollBarWidth() {
@@ -75,6 +77,13 @@ window.log = function ( msg ) {
 		document.body.removeChild(outer);
 		return (w1 - w2);
 	};
+
+
+	plog = function ( text ) {
+		var panel = $('#logs'),
+			str = panel.val();
+		panel.val( str + "\n"+ text );
+	}
 
 	scrollbarWidth = function() {
 		var parent, child, width;
@@ -375,17 +384,18 @@ $.extend(MomentumTracker.prototype, {
 					var self = this,
 						pos = 0,
 						$scrollBar = self._$scrollBar;
-		
-					// if ( self._eventType !== 'touch' ) {
-						// return ;
-					// }
+
 					if ( self._direction ) {
 						pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
 						$scrollBar.css ( "left" , pos  + "px");
 					} else {
 						pos = y + ( self._movePos * parseInt( y / self._$templateItemSize.height, 10 ) );
+						pos = Math.floor( pos );
 						// console.log(" pos : %s, scrollTop : %s", pos, self._$view[0].scrollTop);
-						$scrollBar.css ( "top" , pos  + "px");
+						plog(" pos : "+pos+"\t\t, scrollTop : "+ self._$view[0].scrollTop);
+						// $scrollBar.css ( "top" , pos  + "px");
+						$scrollBar[0].style.top =  pos  + "px";
+						// $scrollBar[0].style.top =  ( 100 + y )  + "px";
 					}
 				};
 			// }
@@ -450,10 +460,8 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			if ( rowCount > self._rowsPerView ) {
-				console.log(">>>>>>> increase row..........")
 				self._increaseRow( rowCount - self._rowsPerView );
 			} else if ( rowCount < self._rowsPerView ) {
-				console.log(">>>>>>> decrease row..........")
 				self._decreaseRow( self._rowsPerView - rowCount );
 			}
 			self._rowsPerView = rowCount;
@@ -555,6 +563,7 @@ $.extend(MomentumTracker.prototype, {
 					self._resize();
 				}
 			});
+			
 		},
 
 		_getinheritedSize : function ( elem ) {
@@ -604,7 +613,6 @@ $.extend(MomentumTracker.prototype, {
 				x = tracker.getPosition();
 				keepGoing = keepGoing || !tracker.done();
 			}
-			console.log( "-> [_handleMomentumScroll] x : %s // y : %s", self._$view[0].scrollLeft, x );
 			self._setScrollPosition(self._$view[0].scrollLeft, x );
 			if ( keepGoing ) {
 				self._timerID = setTimeout( self._timerCB, self._timerInterval );
@@ -643,8 +651,10 @@ $.extend(MomentumTracker.prototype, {
 			if ( self._scrolling ) {
 				distanceY = self._curPos.y - self._prevPos.y;
 				newY = self._$view[0].scrollTop - distanceY;
-				console.log( "-> [handleDragMove] x : %s // y : %s", self._$view[0].scrollLeft, newY );
+				var before = self._$scrollBar[0].style.top;
 				self._setScrollPosition(self._$view[0].scrollLeft, newY );
+				console.log("[handleDragMove] scrollTop : %s , newY : %s ,scrollBar pos  : ( %s / %s ) ", self._$view[0].scrollTop, newY, before, self._$scrollBar[0].style.top);
+				
 			} else {
 				self._scrolling = true;
 			}
@@ -728,8 +738,6 @@ $.extend(MomentumTracker.prototype, {
 				idx = 0,
 				$row = null;
 
-			console.log( "\t-> [1. _setScrollPosition] x : %s // y : %s", x, y );
-
 			if ( self._direction ) {
 				curPos = x;
 				templateItemSize = self._$templateItemSize.width;
@@ -787,12 +795,12 @@ $.extend(MomentumTracker.prototype, {
 				}
 			}
 
+			self._setScrollBarPos( x, y );
 			if ( self._direction ) {
 				self._$view[ 0 ].scrollLeft = x;
 			} else {
 				self._$view[ 0 ].scrollTop = y;
 			}
-			self._setScrollBarPos( parseInt( x, 10 ), parseInt( y, 10 ) );
 		},
 
 		//----------------------------------------------------//
@@ -905,37 +913,19 @@ $.extend(MomentumTracker.prototype, {
 				$scrollBar = self._$scrollBar;
 
 			if ( self._direction ) {
-				// size = parseInt( self._maxSize / self._$clipSize.width, 10 );
 				size = parseInt( self._$content.width() / self._$clipSize.width, 10 );
-				size = size < 15 ? 15 : size;
+				// size = size < 15 ? 15 : size;
+				size = size + 15;
 				self._movePos = ( self._$clipSize.width - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.width( size );
 			} else {
-				// size = parseInt ( Math.pow( self._$clipSize.height , 2) / self._maxSize , 10 );
 				size = parseInt ( self._$clipSize.height / self._$content.height() * 100 , 10 );
-				// console.log ( "calculated size : %s / %s = %s ( %s - %s )", self._$clipSize.height, self._$content.height(), size, self._$templateItemSize.height,self._totalRowCnt );
-				size = size < 15 ? 15 : size;
+				// size = size < 15 ? 15 : size;
+				size = size + 15;
 				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.height( size );
 			}
 		},
-
-		// _setScrollBarPos : function ( x, y ) {
-			// var self = this,
-				// pos = 0,
-				// $scrollBar = self._$scrollBar;
-// 
-			// if ( self._eventType !== 'touch' ) {
-				// return ;
-			// }
-			// if ( self._direction ) {
-				// pos = x + ( self._movePos * parseInt( x / self._$templateItemSize.width, 10 ) );
-				// $scrollBar.css ( "top" , pos  + "px");
-			// } else {
-				// pos = y + ( self._movePos * parseInt( y / self._$templateItemSize.height, 10 ) );
-				// $scrollBar.css ( "top" , pos  + "px");
-			// }
-		// },
 
 		//----------------------------------------------------//
 		//		DOM Element handle		//
@@ -1045,7 +1035,6 @@ $.extend(MomentumTracker.prototype, {
 			if ( !isNaN( posVal ) ) {
 				result = result.replace( '>', " style=\"" + attrName + ": " + String( posVal ) + "px\">");
 			}
-
 			return result;
 		},
 
