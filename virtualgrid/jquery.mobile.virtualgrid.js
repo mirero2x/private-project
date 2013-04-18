@@ -241,7 +241,6 @@ $.extend(MomentumTracker.prototype, {
 
 			self._$document = $( document );
 
-			// self._timerCB = self._handleMomentumScroll;
 			self._timerCB = function () {
 				self._handleMomentumScroll();
 			};
@@ -259,7 +258,14 @@ $.extend(MomentumTracker.prototype, {
 			self._$clip = $( self.element ).addClass("ui-scrollview-clip").addClass("ui-virtualgrid-view");
 			self._$clip.css("overflow", "hidden");
 
-			self._$view = $( document.createElement("div") ).addClass("ui-virtualgrid-overthrow overthrow");
+			self._$view = $( document.createElement("div") ).addClass("ui-virtualgrid-overthrow");
+			self._$view[0].style.overflow = 'auto';
+			if ( self._direction ) {
+				self._$view[0].style['overflow-y'] = 'hidden';
+			} else {
+				self._$view[0].style['overflow-x'] = 'hidden';
+			}
+			
 			self._$clip.append(self._$view);
 
 			self._$content = $("<div class='ui-virtulgrid-content' style='position:relative;' ></div>");
@@ -558,6 +564,7 @@ $.extend(MomentumTracker.prototype, {
 				keepGoing = keepGoing || !tracker.done();
 			}
 			self._setScrollPosition( x, y );
+			console.log("keepgoing : %s ", keepGoing );
 			if ( keepGoing ) {
 				self._timerID = setTimeout( self._timerCB, self._timerInterval );
 			} else {
@@ -585,6 +592,8 @@ $.extend(MomentumTracker.prototype, {
 				newY = self._$view[0].scrollTop,
 				newX = self._$view[0].scrollLeft,
 				distanceY =0;
+
+			console.log("[_handleDragMove] x : %s - y : %s ", x, y );
 
 			self._lastPos2 = y;
 			self._prevPos.x = self._curPos.x;

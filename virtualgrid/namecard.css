@@ -45,27 +45,25 @@
 	resize:horizontal;
 }
 /*
- * for scrollbar
+ * for virtualgrid
  */
 .ui-scrollbar {
 	position: absolute;
 	overflow: hidden;
 	opacity: 1;
 }
-.ui-scrollbar-visible {
-	opacity: 1;
-}
+
 .ui-scrollbar-y {
-	top: 0.09090909090909091rem;
-	right: 0.09090909090909091rem;
-	bottom: 0.09090909090909091rem;
-	width: 0.36363636363636365rem;
+	top: 0.09rem;
+	right: 0.09rem;
+	bottom: 0.09rem;
+	width: 0.5rem;
 }
 .ui-scrollbar-x {
-	right: 0.09090909090909091rem;
-	bottom: 0.09090909090909091rem;
-	left: 0.09090909090909091rem;
-	height: 0.36363636363636365rem;
+	right: 0.09rem;
+	bottom: 0.09rem;
+	left: 0.09rem;
+	height: 0.5rem;
 }
 .ui-scrollbar-track {
 	position: relative;
