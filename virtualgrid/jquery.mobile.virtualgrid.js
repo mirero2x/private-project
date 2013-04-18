@@ -376,6 +376,7 @@ $.extend(MomentumTracker.prototype, {
 
 			width = self._calculateClipSize( 'width' );
 			height = self._calculateClipSize( 'height' );
+
 			columnCount = self._calculateColumnCount();
 
 			if ( self._itemCount !== columnCount ) {
@@ -402,6 +403,9 @@ $.extend(MomentumTracker.prototype, {
 			// post process
 			self._$view.width( width ).height( height );
 			self._$clip.width( width ).height( height );
+			self._$clipSize.width = width;
+			self._$clipSize.height = height;
+
 			self._setScrollBarSize();
 			self._setScrollBarPos( self._$view[0].scrollLeft, self._$view[0].scrollTop )
 		},
@@ -422,6 +426,9 @@ $.extend(MomentumTracker.prototype, {
 			}
 
 			columnCount = self._calculateColumnCount();
+			if (columnCount == 1){
+				self._calculateColumnCount();
+			}
 
 			totalRowCnt = parseInt(self._numItemData / columnCount , 10 );
 			self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
@@ -439,7 +446,9 @@ $.extend(MomentumTracker.prototype, {
 
 			self._$content[ attributeName ]( self._totalRowCnt * templateSize );
 			self._tailItemIdx = self._rowsPerView + 1;
-			console.log("[initPageProperty] headIndex : %s - tailIndex : %s " , self._headItemIdx, self._tailItemIdx )
+			console.log("[_initPageProperty] clipSize { width : %s px, height: %s px }", self._$clipSize.width, self._$clipSize.height );
+			console.log("[_initPageProperty] headIndex : %s - tailIndex : %s " , self._headItemIdx, self._tailItemIdx );
+			console.log("[_initPageProperty] columnCount : %s \n", columnCount );
 		},
 
 		_addEventListener : function () {
@@ -822,6 +831,7 @@ $.extend(MomentumTracker.prototype, {
 			if ( viewSize < templateSize * self._numItemData ) {
 				viewSize = viewSize - ( self._scrollBarWidth );
 			}
+			console.log("[_calculateColumnCount] viewSize : %s - templateSize : %s ", viewSize, templateSize );
 			itemCount = parseInt( ( viewSize / templateSize ), 10);
 			return itemCount > 0 ? itemCount : 1 ;
 		},
@@ -844,9 +854,9 @@ $.extend(MomentumTracker.prototype, {
 			var prefix = "<div class=\"ui-scrollbar ui-scrollbar-";
 			var suffix = "\"><div class=\"ui-scrollbar-track\"><div class=\"ui-scrollbar-thumb\"></div></div></div>";
 
-			// if ( self._eventType !== 'touch' ) {
-				// return ;
-			// }
+			if ( self._eventType !== 'touch' ) {
+				return ;
+			}
 
 			// add utility function.
 			self._setScrollBarPos = function ( x, y ) {
@@ -876,8 +886,6 @@ $.extend(MomentumTracker.prototype, {
 			if ( self._direction ) {
 				$scrollBar = $( prefix + "x" + suffix );
 				self._$view.css("overflow-y", "hidden");
-				console.log("native scrollbar width : %s px. ", self._scrollBarWidth);
-				console.log("native clipSize height : %s px. ", self._$clipSize.height);
 				self._$content[0].style.height = ( self._$clipSize.height -  self._scrollBarWidth ) +"px";
 			} else {
 				$scrollBar = $( prefix + "y" + suffix );
@@ -892,9 +900,9 @@ $.extend(MomentumTracker.prototype, {
 				size = 0,
 				$scrollBar = self._$scrollBar;
 
-			// if ( self._eventType !== 'touch' ) {
-				// return ;
-			// }
+			if ( self._eventType !== 'touch' ) {
+				return ;
+			}
 
 			if ( self._direction ) {
 				size = parseInt( self._$content.width() / self._$clipSize.width, 10 );
