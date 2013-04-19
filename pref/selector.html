@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+
+		<!-- Provide a title.  This will be shown on the generated chart -->
+		<title>Demo Test Suite</title>
+
+		<script type="text/javascript" src="../libs/JSLitmus.js"></script>
+		<script type="text/javascript" src="../libs/jquery-1.8.2.js"></script>
+		<script type="text/javascript">
+			// What if we set innerHTML to a Date?  Since this operation is pretty slow
+			// there's no need to implement this as a looping test.
+			var $page = $( "#page" );
+			JSLitmus.test('jquery.find', function() {
+				for ( var idx = 0 ; idx < 110000 ; idx ++ ) {
+					$( "#page" ).find(".ui-links");
+				}
+			});
+
+			JSLitmus.test('jquery.children', function() {
+				for ( var idx = 0 ; idx < 110000 ; idx ++ ) {
+					$( "#page" ).children(".ui-links");
+				}
+			});
+
+			JSLitmus.test('querySelectorAll 2', function(count) {
+				for ( var idx = 0 ; idx < 110000 ; idx ++ ) {
+					document.querySelectorAll(".ui-links");
+				}
+			});
+
+
+			// Test Array creation, so we can compare to other operations
+			JSLitmus.test('querySelectorAll', function(count) {
+				for ( var idx = 0 ; idx < 110000 ; idx ++ ) {
+					$( "#page" )[0].querySelectorAll(".ui-links");
+				}
+			});
+			
+		</script>
+	</head>
+
+	<body>
+		<div id="page">
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div id='test'><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a class="ui-links"></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a class="ui-links"></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a class="ui-links"></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+<div><div><div><div><a></a></div></div></div>
+</div>
+		<p>
+			A simple demo showing how JSLitmus can be used to test the performance of some core JavaScript features. View source to see fully commented code.
+		</p>
+		<div id="test_element" style="overflow:hidden; width: 1px; height:1px;"></div>
+		
+		
+	</body>
+</html>

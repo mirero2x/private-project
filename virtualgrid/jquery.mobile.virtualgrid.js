@@ -268,7 +268,7 @@ $.extend(MomentumTracker.prototype, {
 			
 			self._$clip.append(self._$view);
 
-			self._$content = $("<div class='ui-virtulgrid-content' style='position:relative;' ></div>");
+			self._$content = $("<div class='ui-virtualgrid-content' style='position:relative;' ></div>");
 			self._$view.append(self._$content);
 
 			self._addEventListener();
@@ -372,6 +372,8 @@ $.extend(MomentumTracker.prototype, {
 				rowCount = 0,
 				totalRowCnt = 0,
 				columnCount = 0,
+				$orderedRows = null,
+				isModified = false,
 				cssPropertyName = self._direction ? 'width' : 'height';
 
 			if ( !self._inheritedSize ) {
@@ -391,6 +393,7 @@ $.extend(MomentumTracker.prototype, {
 				self._totalRowCnt = self._numItemData % columnCount === 0 ? totalRowCnt : totalRowCnt + 1;
 				self._$content[ cssPropertyName ]( self._totalRowCnt * self._$templateItemSize[ cssPropertyName ] );
 				self._replaceRows();
+				isModified = true;
 			}
 
 			if ( self._direction ) {
@@ -401,8 +404,10 @@ $.extend(MomentumTracker.prototype, {
 
 			if ( rowCount > self._rowsPerView ) {
 				self._increaseRow( rowCount - self._rowsPerView );
+				isModified = true;
 			} else if ( rowCount < self._rowsPerView ) {
 				self._decreaseRow( self._rowsPerView - rowCount );
+				isModified = true;
 			}
 			self._rowsPerView = rowCount;
 
@@ -412,8 +417,17 @@ $.extend(MomentumTracker.prototype, {
 			self._$clipSize.width = width;
 			self._$clipSize.height = height;
 
+			// Sort order
+			if ( isModified ) {
+				$orderedRows = self._$content.children( "[row-index]" ).sort( function ( a, b ) {
+						return a.getAttribute( "row-index" ) - b.getAttribute( "row-index" );
+				});
+				self._headItemIdx = parseInt ( $orderedRows[ 0 ].getAttribute( "row-index" ) , 10 );
+				self._tailItemIdx =  parseInt ( $orderedRows[ $orderedRows.length - 1 ].getAttribute( "row-index" ) , 10 );
+			}
+
 			self._setScrollBarSize();
-			self._setScrollBarPos( self._$view[0].scrollLeft, self._$view[0].scrollTop )
+			self._setScrollBarPos( self._$view[0].scrollLeft, self._$view[0].scrollTop );
 		},
 
 		_initPageProperty : function () {
@@ -564,7 +578,6 @@ $.extend(MomentumTracker.prototype, {
 				keepGoing = keepGoing || !tracker.done();
 			}
 			self._setScrollPosition( x, y );
-			console.log("keepgoing : %s ", keepGoing );
 			if ( keepGoing ) {
 				self._timerID = setTimeout( self._timerCB, self._timerInterval );
 			} else {
@@ -592,8 +605,6 @@ $.extend(MomentumTracker.prototype, {
 				newY = self._$view[0].scrollTop,
 				newX = self._$view[0].scrollLeft,
 				distanceY =0;
-
-			console.log("[_handleDragMove] x : %s - y : %s ", x, y );
 
 			self._lastPos2 = y;
 			self._prevPos.x = self._curPos.x;
@@ -840,7 +851,6 @@ $.extend(MomentumTracker.prototype, {
 			if ( viewSize < templateSize * self._numItemData ) {
 				viewSize = viewSize - ( self._scrollBarWidth );
 			}
-			console.log("[_calculateColumnCount] viewSize : %s - templateSize : %s ", viewSize, templateSize );
 			itemCount = parseInt( ( viewSize / templateSize ), 10);
 			return itemCount > 0 ? itemCount : 1 ;
 		},
@@ -913,13 +923,17 @@ $.extend(MomentumTracker.prototype, {
 				return ;
 			}
 
+			if (self._direction ) {
+				self._$content[0].style.height = ( self._$clipSize.height -  self._scrollBarWidth ) +"px";
+			}
+
 			if ( self._direction ) {
-				size = parseInt( self._$content.width() / self._$clipSize.width, 10 );
+				size = parseInt( ( self._$clipSize.width / self._$content.width() ) * 100 , 10 );
 				size = size + 15;
 				self._movePos = ( self._$clipSize.width - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.width( size );
 			} else {
-				size = parseInt ( self._$clipSize.height / self._$content.height() * 100 , 10 );
+				size = parseInt ( ( self._$clipSize.height / self._$content.height() ) * 100 , 10 );
 				size = size + 15;
 				self._movePos = ( self._$clipSize.height - size ) / ( self._totalRowCnt - ( self._rowsPerView - 1 ) );
 				$scrollBar.height( size );
@@ -1049,6 +1063,9 @@ $.extend(MomentumTracker.prototype, {
 			filterCondition = self._$view[0].scrollTop - ( self._$templateItemSize['height'] * 0.9 )
 			do {
 				$row = $( "[row-index='" + index + "']", self._$content );
+				if ( $row.length === 0 ) {
+					console.error("Error : Can not find row - current index : %s / head : %s / tail : %s",  index, self._headItemIdx, self_tailItemIdx );
+				}
 				if ( $row && $row.position()['top'] >= filterCondition ) {
 					break;
 				}
