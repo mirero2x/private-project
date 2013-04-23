@@ -25,23 +25,19 @@
 
 ( function ($, window, document, undefined) {
 
-	plog = function ( text ) {
-		var panel = $('#logs'),
-			str = panel.val();
-		panel.val( str + "\n"+ text );
+
+function scrollbarWidth()
+{
+	var parent, child, width;
+
+	if(width === undefined) {
+		parent = $('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body');
+		child=parent.children();
+		width=child.innerWidth()-child.height(99).innerWidth();
+		parent.remove();
 	}
-
-	scrollbarWidth = function() {
-		var parent, child, width;
-
-		if(width === undefined) {
-			parent = $('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body');
-			child=parent.children();
-			width=child.innerWidth()-child.height(99).innerWidth();
-			parent.remove();
-		}
-		return width;
-	};
+	return width;
+};
 
 function MomentumTracker(options)
 {
