@@ -1,0 +1,101 @@
+.ui-demo-rotation-namecard {
+	display:inline-block;
+	width : 70px;
+	height : 99px;
+	margin-right: 5px;
+	margin-left: 5px;
+	margin-bottom: 8px;
+}
+
+
+.ui-demo-namecard-pic {
+	float : left;
+	padding-top : 3px;
+	padding-left : 3px;
+	padding-bottom: 0rem;
+}
+
+.ui-demo-namecard-pic-img {
+	height : 69px;
+	width : 69px;
+}
+
+.ui-demo-namecard-contents {
+	float : left;
+	height : 16px;
+	margin: 0rem;
+}
+
+.ui-demo-namecard-contents span {
+	font-style : italic;
+	color : #666;
+	border-bottom : 1px dashed;
+	margin-top: 0rem;
+}
+
+.ui-demo-namecard-contents span.name {
+	color : gray;
+	font : normal 0.6rem Georgia, serif !important;
+	width: 64px;
+	display: inline-block;
+	white-space : nowrap;
+	overflow : hidden !important;
+	text-overflow : ellipsis !important;
+	-o-text-overflow:ellipsis;
+	resize:horizontal;
+}
+/*
+ * for virtualgrid
+ */
+.ui-scrollbar {
+	position: absolute;
+	overflow: hidden;
+	opacity: 1;
+}
+
+.ui-scrollbar-y {
+	top: 0.09rem;
+	right: 0.09rem;
+	bottom: 0.09rem;
+	width: 0.5rem;
+}
+.ui-scrollbar-x {
+	right: 0.09rem;
+	bottom: 0.09rem;
+	left: 0.09rem;
+	height: 0.5rem;
+}
+.ui-scrollbar-track {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+.ui-scrollbar-thumb {
+	position: absolute;
+	top: 0;
+	left: 0;
+	background-color: #c6c4be;
+}
+.ui-scrollbar-y .ui-scrollbar-thumb {
+	width: 0.2272727272727273rem;
+	height: 100%;
+	-o-border-radius: 0.09090909090909091rem;
+	-ms-border-radius: 0.09090909090909091rem;
+	-moz-border-radius: 0.09090909090909091rem;
+	-webkit-border-radius: 0.09090909090909091rem;
+	border-radius: 0.09090909090909091rem;
+	-o-box-shadow: 0.045454545454545456rem 0.045454545454545456rem 0.09090909090909091rem #94928c;
+	-ms-box-shadow: 0.045454545454545456rem 0.045454545454545456rem 0.09090909090909091rem #94928c;
+	-moz-box-shadow: 0.045454545454545456rem 0.045454545454545456rem 0.09090909090909091rem #94928c;
+	-webkit-box-shadow: 0.045454545454545456rem 0.045454545454545456rem 0.09090909090909091rem #94928c;
+	box-shadow: 0.045454545454545456rem 0.045454545454545456rem 0.09090909090909091rem #94928c;
+}
+.ui-scrollbar-x .ui-scrollbar-thumb {
+	width: 100%;
+	height: 0.2272727272727273rem;
+	-o-border-radius: 0.09090909090909091rem;
+	-ms-border-radius: 0.09090909090909091rem;
+	-moz-border-radius: 0.09090909090909091rem;
+	-webkit-border-radius: 0.09090909090909091rem;
+	border-radius: 0.09090909090909091rem;
+}
